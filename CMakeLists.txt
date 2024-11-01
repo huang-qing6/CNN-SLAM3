@@ -34,14 +34,14 @@ ${PROJECT_SOURCE_DIR}/Thirdparty
 ${PROJECT_SOURCE_DIR}/Thirdparty/Sophus
 ${PROJECT_SOURCE_DIR}/Thirdparty/boost/include
 ${PROJECT_SOURCE_DIR}/Thirdparty/Eigen3/include/eigen3
-${PROJECT_SOURCE_DIR}/Thirdparty/DMA/include
+#${PROJECT_SOURCE_DIR}/Thirdparty/DMA/include
 )
 
 file(GLOB SRC_LIST 
 "src/*.cc" 
 "src/*.cpp" 
 "src/CameraModels/*.cpp" 
-"Thirdparty/cma/*.h"
+#"Thirdparty/cma/*.h"
 )
 
 # libSLAM3
@@ -59,8 +59,8 @@ ${PROJECT_SOURCE_DIR}/Thirdparty/DBoW2/lib/libDBoW2.so
 ${PROJECT_SOURCE_DIR}/Thirdparty/g2o/lib/libg2o.so
 ${PROJECT_SOURCE_DIR}/Thirdparty/boost/lib/libboost_serialization.so
 ${PROJECT_SOURCE_DIR}/Thirdparty/openssl/lib/libcrypto.so
-${PROJECT_SOURCE_DIR}/Thirdparty/cma/lib/libcma.so
-${PROJECT_SOURCE_DIR}/Thirdparty/DMA/lib/libaxidma.so
+#${PROJECT_SOURCE_DIR}/Thirdparty/cma/lib/libcma.so
+#${PROJECT_SOURCE_DIR}/Thirdparty/DMA/lib/libaxidma.so
 )
 
 #------Build Examples-----#
@@ -69,8 +69,8 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/Examples/Monocular)
 add_executable(mono_euroc ${PROJECT_SOURCE_DIR}/Examples/Monocular/mono_euroc.cc)
 target_link_libraries(mono_euroc ${PROJECT_NAME} ${OpenCV_LIBS})
 
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/Examples/cma_test)
-add_executable(cma_test ${PROJECT_SOURCE_DIR}/Examples/cma_test/cma_test.c)
-target_link_libraries(cma_test 
--lpthread
-${PROJECT_SOURCE_DIR}/Thirdparty/cma/lib/libcma.so)
+#set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/Examples/cma_test)
+#add_executable(cma_test ${PROJECT_SOURCE_DIR}/Examples/cma_test/cma_test.c)
+#target_link_libraries(cma_test 
+#-lpthread
+#${PROJECT_SOURCE_DIR}/Thirdparty/cma/lib/libcma.so)
