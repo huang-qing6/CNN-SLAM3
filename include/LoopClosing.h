@@ -223,8 +223,9 @@ protected:
     bool mbFixScale;
 
 
-    bool mnFullBAIdx;
-
+    // 修正bool 在c++17不准 operator++
+    // bool mnFullBAIdx;
+    int mnFullBAIdx;
 
 
     vector<double> vdPR_CurrentTime;

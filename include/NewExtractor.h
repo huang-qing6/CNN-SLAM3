@@ -1,48 +1,38 @@
 #ifndef NEWEXTRACTOR_H
 #define NEWEXTRACTOR_H
 
+#include "torch/script.h"
+#include "torch/torch.h"
+
 #include <vector>
 #include <list>
 #include <opencv2/opencv.hpp>
 
-extern "C" {
-#include "cma/libxlnk_cma.h" // allocate CMA
-#include "libaxidma.h" // Interface to the AXI DMA
-}
+// Compile will fail for opimizier since pytorch defined this, from GNN_SLAMv2
+#ifdef EIGEN_MPL2_ONLY
+#undef EIGEN_MPL2_ONLY
+#endif
 
+namespace ORB_SLAM3{
 
+    /* 这里删掉了描述子的部分 */
 
-#include <chrono>
-
-namespace ORB_SLAM3
-{
-class KeypointAndDesc{
-public:
-    uint32_t desc[8] = {0};
-    uint32_t posX = 0;
-    uint32_t posY = 0;
-    uint32_t response = 0;
-
-    KeypointAndDesc();
-    KeypointAndDesc(const KeypointAndDesc &kp);
-
-    ~KeypointAndDesc();
-};
+class CNNextractor{
     
-class FPGAextractor{
 public:
-    FPGAextractor() {}
-    FPGAextractor(int nfeatures, float scaleFactor, int nlevels,
-                int iniThFAST, int minThFAST);
+    
+    CNNextractor(){};
+    CNNextractor(int nfeatures, float scaleFactor, int nlevels,
+                int initThFAST, int minThFAST);
 
-    ~FPGAextractor() {}
-
-    void extract(const cv::Mat &img, std::vector<KeypointAndDesc> &allKpAndDesc);
+    ~CNNextractor(){};
 
     int operator()( cv::InputArray _image, cv::InputArray _mask,
                 std::vector<cv::KeyPoint>& _keypoints,
                 cv::OutputArray _descriptors, std::vector<int> &vLappingArea);
 
+
+    /* 保留但不实例化，保证其他部分不需要更改 */
     int inline GetLevels(){
         return nlevels;}
 
@@ -65,16 +55,11 @@ public:
         return mvInvLevelSigma2;
     }
 
-    void printProfileInfo();
-
     std::vector<cv::Mat> mvImagePyramid;
-private:
-    //cma para
-    uchar *tx_Buf;
-    KeypointAndDesc *rx_Buf;
-    unsigned long tx_BufPAddr, rx_BufPAddr;
 
-    //org para
+protected:
+    /* 这里删除图像金字塔的部分函数，只保留了参数 */
+
     int nfeatures;
     double scaleFactor;
     int nlevels;
@@ -89,7 +74,11 @@ private:
     std::vector<float> mvInvScaleFactor;    
     std::vector<float> mvLevelSigma2;
     std::vector<float> mvInvLevelSigma2;
+
+    // 新增 CNN module
+    std::shared_ptr<torch::jit::script::Module> module;
+
 };
 
-} // namespace ORB_SLAM3
+} // namespace CNN_SLAM3(OG:ORB_SLAM3)
 #endif

@@ -10,220 +10,270 @@
 using namespace cv;
 using namespace std;
 
-namespace ORB_SLAM3
-{
-    /*const int PATCH_SIZE = 31;
+namespace ORB_SLAM3{
+
+    const int PATCH_SIZE = 31;
     const int HALF_PATCH_SIZE = 15;
-    const int EDGE_THRESHOLD = 19;*/
+    const int EDGE_THRESHOLD = 19;
 
-    //dma para
-    bool first_init = true; 
-    int num_transfers;
-    int tx_channel, rx_channel;
-    size_t tx_size, rx_size;
-    //char *tx_buf, *rx_buf;
-    axidma_dev_t axidma_dev;
-    const array_t *tx_chans, *rx_chans;
-    struct axidma_video_frame transmit_frame, *tx_frame, receive_frame, *rx_frame;
 
-    KeypointAndDesc::KeypointAndDesc() {}
-    KeypointAndDesc::KeypointAndDesc(const KeypointAndDesc &kp){
-        for(int i=0; i<8; i++)
-            this->desc[i] = kp.desc[i];
-        this->posX = kp.posX;
-        this->posY = kp.posY;
-        this->response = kp.response;
+// 需要理解在初始化啥子
+    void CNN_Init(cv::Mat det, cv::Mat desc, std::vector<cv::KeyPoint>& pts, cv::Mat& descriptors,
+        int border, int dist_thresh, int img_width, int img_height, float ratio_width, float ratio_height){
+        /* 暂时不知道是写个啥子，对标GCN_SLAMv2的nms函数 */
+        std::vector<cv::Point2f> pts_raw;
+
+        for (int i = 0; i < det.rows; i++){
+
+            int u = (int) det.at<float>(i, 0);
+            int v = (int) det.at<float>(i, 1);
+
+            pts_raw.push_back(cv::Point2f(u, v));
+        }
+
+        cv::Mat grid = cv::Mat(cv::Size(img_width, img_height), CV_8UC1);
+        cv::Mat inds = cv::Mat(cv::Size(img_width, img_height), CV_16UC1);
+
+        grid.setTo(0);
+        inds.setTo(0);
+
+        for (int i = 0; i < pts_raw.size(); i++)
+        {   
+            int uu = (int) pts_raw[i].x;
+            int vv = (int) pts_raw[i].y;
+
+            grid.at<char>(vv, uu) = 1;
+            inds.at<unsigned short>(vv, uu) = i;
+        }
+        
+        cv::copyMakeBorder(grid, grid, dist_thresh, dist_thresh, dist_thresh, dist_thresh, cv::BORDER_CONSTANT, 0);
+
+        for (int i = 0; i < pts_raw.size(); i++)
+        {   
+            int uu = (int) pts_raw[i].x + dist_thresh;
+            int vv = (int) pts_raw[i].y + dist_thresh;
+
+            if (grid.at<char>(vv, uu) != 1)
+                continue;
+
+            for(int k = -dist_thresh; k < (dist_thresh+1); k++)
+                for(int j = -dist_thresh; j < (dist_thresh+1); j++)
+                {
+                    if(j==0 && k==0) continue;
+
+                    grid.at<char>(vv + k, uu + j) = 0;
+                    
+                }
+            grid.at<char>(vv, uu) = 2;
+        }
+
+        size_t valid_cnt = 0;
+        std::vector<int> select_indice;
+
+        for (int v = 0; v < (img_height + dist_thresh); v++){
+            for (int u = 0; u < (img_width + dist_thresh); u++)
+            {
+                if (u -dist_thresh>= (img_width - border) || u-dist_thresh < border || v-dist_thresh >= (img_height - border) || v-dist_thresh < border)
+                continue;
+
+                if (grid.at<char>(v,u) == 2)
+                {
+                    int select_ind = (int) inds.at<unsigned short>(v-dist_thresh, u-dist_thresh);
+                    pts.push_back(cv::KeyPoint(pts_raw[select_ind].x * ratio_width, pts_raw[select_ind].y * ratio_height, 1.0f));
+
+                    select_indice.push_back(select_ind);
+                    valid_cnt++;
+                }
+            }
+        }
+        
+        descriptors.create(select_indice.size(), 32, CV_8U);
+
+        for (int i=0; i<select_indice.size(); i++)
+        {
+            for (int j=0; j<32; j++)
+            {
+                descriptors.at<unsigned char>(i, j) = desc.at<unsigned char>(select_indice[i], j);
+            }
+        }
     }
-    KeypointAndDesc::~KeypointAndDesc() {}
 
- //初始化图像金字塔
-FPGAextractor::FPGAextractor( int _nfeatures, float _scaleFactor, int _nlevels,
+    CNNextractor::CNNextractor(int _nfeatures, float _scaleFactor, int _nlevels,
                                int _iniThFAST, int _minThFAST):
             nfeatures(_nfeatures), scaleFactor(_scaleFactor), nlevels(_nlevels),
             iniThFAST(_iniThFAST), minThFAST(_minThFAST)
-{
-        // 待定传出/传入
-        int imgsize = 1920 * 1080; // 图像FPS
-        int keypoints = 512; // 传回特征点数量
-
-    #pragma region 初始化DMA驱动
-        printf("*****DMA Driver Initalized*******\n");
-        if(first_init){
-            tx_channel = -1; // default tx_channel num
-            rx_channel = -1; // default rx_channel num
-            axidma_dev = axidma_init();
-                if (axidma_dev == NULL) {
-                fprintf(stderr, "Failed to initialize the AXI DMA device.\n");
-                goto ret;
-            }
-
-            // vDMA 初始化，暂时不用
-            tx_frame = NULL;
-            rx_frame = NULL;
-            tx_size = imgsize * sizeof(int);
-            rx_size = keypoints * sizeof(KeypointAndDesc);
-            first_init = false;
-
-            // get the channel number
-            tx_chans = axidma_get_dma_tx(axidma_dev);
-            rx_chans = axidma_get_dma_rx(axidma_dev);
-            if (tx_chans->len < 1) {
-                fprintf(stderr, "Error: No transmit channels were found.\n");
-            }
-            if (rx_chans->len < 1) {
-                fprintf(stderr, "Error: No receive channels were found.\n");
-            }
-
-            /** 作为常规设计根据调用驱动返回来定义tx、rx名字比较符合软件设计，
-             *  也可自己在channel初始化直接定义tx = 0, rx = 1
-             *  */
-            if (tx_channel == -1 && rx_channel == -1) {
-                tx_channel = tx_chans->data[0];
-                rx_channel = rx_chans->data[0];
-            }
-
-            printf("init driver finshed!\n");
+    {
+        mvScaleFactor.resize(nlevels);
+        mvLevelSigma2.resize(nlevels);
+        mvScaleFactor[0]=1.0f;
+        mvLevelSigma2[0]=1.0f;
+        for(int i=1; i<nlevels; i++)
+        {
+            mvScaleFactor[i]=mvScaleFactor[i-1]*scaleFactor;
+            mvLevelSigma2[i]=mvScaleFactor[i]*mvScaleFactor[i];
         }
 
-        // 初始化cma地址
-        tx_Buf = (uchar*)cma_alloc(tx_size , 0);
-        tx_BufPAddr = cma_get_phy_addr((void*)tx_Buf);
-        rx_Buf = (KeypointAndDesc*)cma_alloc(rx_size , 0);
-        rx_BufPAddr = cma_get_phy_addr((void*)rx_Buf);
-        printf("srcBuf: %x, srcBufPAddr: %x\n", tx_Buf, tx_BufPAddr);
-        printf("dstBuf: %x, dstBufPAddr: %x\n", rx_Buf, rx_BufPAddr);
-    
-        printf("*****DMA Driver initalized finished!******\n");
-    #pragma endregion
+        mvInvScaleFactor.resize(nlevels);
+        mvInvLevelSigma2.resize(nlevels);
+        for(int i=0; i<nlevels; i++)
+        {
+            mvInvScaleFactor[i]=1.0f/mvScaleFactor[i];
+            mvInvLevelSigma2[i]=1.0f/mvLevelSigma2[i];
+        }
 
-    #pragma region 图像金字塔初始化 想删掉
-            /*为什么保留了orbextractor？ 答：懒得改了的屎山代码
-        printf("*****ORBExtractor constructor*****\n");
-            mvScaleFactor.resize(nlevels);
-            mvLevelSigma2.resize(nlevels);
-            mvScaleFactor[0]=1.0f;
-            mvLevelSigma2[0]=1.0f;
-            for(int i=1; i<nlevels; i++)
-            {
-                mvScaleFactor[i]=mvScaleFactor[i-1]*scaleFactor;
-                mvLevelSigma2[i]=mvScaleFactor[i]*mvScaleFactor[i];
-            }
+        mvImagePyramid.resize(nlevels);
 
-            mvInvScaleFactor.resize(nlevels);
-            mvInvLevelSigma2.resize(nlevels);
-            for(int i=0; i<nlevels; i++)
-            {
-                mvInvScaleFactor[i]=1.0f/mvScaleFactor[i];
-                mvInvLevelSigma2[i]=1.0f/mvLevelSigma2[i];
-            }
+        mnFeaturesPerLevel.resize(nlevels);
+        float factor = 1.0f / scaleFactor;
+        float nDesiredFeaturesPerScale = nfeatures*(1 - factor)/(1 - (float)pow((double)factor, (double)nlevels));
 
-            mvImagePyramid.resize(nlevels);
+        int sumFeatures = 0;
+        for( int level = 0; level < nlevels-1; level++ )
+        {
+            mnFeaturesPerLevel[level] = cvRound(nDesiredFeaturesPerScale);
+            sumFeatures += mnFeaturesPerLevel[level];
+            nDesiredFeaturesPerScale *= factor;
+        }
+        mnFeaturesPerLevel[nlevels-1] = std::max(nfeatures - sumFeatures, 0);
 
-            mnFeaturesPerLevel.resize(nlevels);
-            float factor = 1.0f / scaleFactor;
-            float nDesiredFeaturesPerScale = nfeatures*(1 - factor)/(1 - (float)pow((double)factor, (double)nlevels));
+        /*const int npoints = 512;
+        const Point* pattern0 = (const Point*)bit_pattern_31_;
+        std::copy(pattern0, pattern0 + npoints, std::back_inserter(pattern));*/
 
-            int sumFeatures = 0;
-            for( int level = 0; level < nlevels-1; level++ )
-            {
-                mnFeaturesPerLevel[level] = cvRound(nDesiredFeaturesPerScale);
-                sumFeatures += mnFeaturesPerLevel[level];
-                nDesiredFeaturesPerScale *= factor;
-            }
-            mnFeaturesPerLevel[nlevels-1] = std::max(nfeatures - sumFeatures, 0);
-            printf("*****ORBExtractor Constructor******\n");*/
-    #pragma endregion
-        ret:
-            printf("*****init dma channel faild, close!~******\n");
+        //This is for orientation
+        // pre-compute the end of a row in a circular patch
+        umax.resize(HALF_PATCH_SIZE + 1);
 
+        int v, v0, vmax = cvFloor(HALF_PATCH_SIZE * sqrt(2.f) / 2 + 1);
+        int vmin = cvCeil(HALF_PATCH_SIZE * sqrt(2.f) / 2);
+        const double hp2 = HALF_PATCH_SIZE*HALF_PATCH_SIZE;
+        for (v = 0; v <= vmax; ++v)
+            umax[v] = cvRound(sqrt(hp2 - v * v));
+
+        // Make sure we are symmetric
+        for (v = HALF_PATCH_SIZE, v0 = 0; v >= vmin; --v)
+        {
+            while (umax[v0] == umax[v0 + 1])
+                ++v0;
+            umax[v] = v0;
+            ++v0;
+        }
+
+        // 初始化CNN
+        const char *net_fn = getenv("CNN_PATH");
+        net_fn = (net_fn == nullptr) ? "cnn.onnx" : net_fn; 
+        //module = torch::jit::load(net_fn);
     }
 
-    void  FPGAextractor::extract(const Mat &img, vector<KeypointAndDesc> &allKpAndDesc){
-        double count;
-        int bytesRecvd;
-        int Keypoint;
-
-        //memcpy 复制 img.data的地址size个字节给srcbuf
-        memcpy(tx_Buf , (void*)img.data, tx_size); //从img.data输入到tx_Buf，tx_size大小的数据
-
-        // Initialize the buffer region we're going to transmit
-        //init_data(tx_Buf, rx_Buf, tx_size, rx_size);
-
-        // Perform the DMA transaction
-        axidma_twoway_transfer(axidma_dev, tx_channel, tx_Buf, tx_size, tx_frame,
-            rx_channel, rx_Buf, rx_size, rx_frame, true);
-
-        // TODO 接收数据部分还没写
-
-        // 读取数据需要切换
-        /*bytesRecvd = desc.getBytesRecvd(); 
-        Keypoint = (bytesRecvd / sizeof(KeypointAndDesc));*/
-
-        // int offsetInKpAndDesc = 0;
-        // allKpAndDesc.reserve(nlevels); // change the nlevels 
-
-        //allKpAndDesc = vector<KeypointAndDesc>(dstBuf + offsetInKpAndDesc, dstBuf + offsetInKpAndDesc + Keypoint); //保存关键数据！！！
-        allKpAndDesc = vector<KeypointAndDesc>(rx_Buf , rx_Buf + Keypoint); //new 保存关键数据！！！
-    }
-
-    int FPGAextractor::operator()( InputArray _image, InputArray _mask, vector<KeyPoint>& _keypoints,
-                                  OutputArray _descriptors, std::vector<int> &vLappingArea) //相比slam2 新增vLapping参数
+    int CNNextractor::operator()( InputArray _image, InputArray _mask, vector<KeyPoint>& _keypoints,
+                                  OutputArray _descriptors, std::vector<int> &vLappingArea)
     {
-        double count;
-        auto t0 = chrono::steady_clock::now();
+        /*
+        torch::DeviceType device_type;
+        device_type = torch::kCUDA;
+        troch::Device device(device_type);
 
         if(_image.empty())
-            return 0;
+            return -1;
 
         Mat image = _image.getMat();
-        assert(image.type() == CV_8UC1);
+        assert(image.type() == CV_8UC1 );
 
-        vector<KeypointAndDesc> allKeypointAndDescs;
+        Mat img;
+        // 为什么要转大小？
+        image.convertTo(img, CV_32FC1, 1.f / 255.f , 0);
+        // 大小360*240， border和dist设置不确定
+        int img_width = 360;
+        int img_height = 240;
+        int border = 8;
+        int dist_thresh = 4;        
 
-        printf("using dma!\n");
-        FPGAextractor::extract(image, allKeypointAndDescs);
-        printf("finish!\n");
+        float ratio_width = float(img.cols) / float(img_width);
+        float ratio_height = float(img.rows) / float(img_height);
+        
+        cv::resize(img, img, cv::Size(img_width, img_height));
 
-        Mat descriptors;
+        #if defined(TORCH_NEW_API)
+            std::vector<int64_t> dims = {1, img_height, img_width, 1};
+            auto img_var = torch::from_blob(img.data, dims, torch::kFloat32).to(device);
+            img_var = img_var.permute({0,3,1,2});
+        #else 
+            auto img_tensor = torch::CPU(torch::kFloat32).tensorFromBlob(img.data, {1, img_height, img_width, 1});
+            img_tensor = img_tensor.permute({0,3,1,2});
+            auto img_var = torch::autograd::make_variable(img_tensor, false).to(device);
+        #endif
 
-        int nkeypoints =  (int)allKeypointAndDescs.size();//如果完全不需要处理特征点就可以这样子
+        std::vector<torch::jit::IValue> inputs;
+        inputs.push_back(img_var);
+        auto output = module->forward(inputs).toTuple();
 
-        //如果有特征就构建cv_8u的32列描述子
-        if( nkeypoints == 0 )
-            _descriptors.release();
-        else
-        {
-            _descriptors.create(nkeypoints, 32, CV_8U);
-            descriptors = _descriptors.getMat();
-        }
+        auto pts  = output->elements()[0].toTensor().to(torch::kCPU).squeeze();
+        auto desc = output->elements()[1].toTensor().to(torch::kCPU).squeeze();
 
-        //orb_slam2是有一个清空初始化，这里直接利用nkeypoints
+        cv::Mat pts_mat(cv::Size(3, pts.size(0)), CV_32FC1, pts.data<float>());
+        cv::Mat desc_mat(cv::Size(32, pts.size(0)), CV_8UC1, desc.data<unsigned char>());
+
+        std::vector<cv::KeyPoint> keypoints;
+        cv::Mat descriptors;
+        // nms(pts_mat, desc_mat, keypoints, descriptors, border, dist_thresh, img_width, img_height, ratio_width, ratio_height);
+        CNN_Init(pts_mat, desc_mat, keypoints, descriptors, border, dist_thresh, img_width, img_height, ratio_width, ratio_height);    
+
+        _keypoints.insert(_keypoints.end(), keypoints.begin(), keypoints.end());
+        
+        int nkeypoints = keypoints.size();
+        _descriptors.create(nkeypoints, 32, CV_8U);
+        descriptors.copyTo(_descriptors.getMat());
+
+        
         _keypoints = vector<cv::KeyPoint>(nkeypoints);
-
+        int offset = 0;
         //Modified for speeding up stereo fisheye matching
         int monoIndex = 0, stereoIndex = nkeypoints-1;
+        for (int level = 0; level < nlevels; ++level)
+        {
+            vector<KeyPoint>& keypoints = allKeypoints[level];
+            int nkeypointsLevel = (int)keypoints.size();
 
-        //vector<KeypointAndDesc>& keypoints = distributedKeypointAndDescs;
-        vector<KeypointAndDesc>& keypoints = allKeypointAndDescs;
+            if(nkeypointsLevel==0)
+                continue;
 
-        int nkeypointsLevel = (int)keypoints.size();
+            // preprocess the resized image
+            Mat workingMat = mvImagePyramid[level].clone();
+            GaussianBlur(workingMat, workingMat, Size(7, 7), 2, 2, BORDER_REFLECT_101);
 
-        Mat desc = cv::Mat(nkeypointsLevel, 32, CV_8U);
+            // Compute the descriptors
+            //Mat desc = descriptors.rowRange(offset, offset + nkeypointsLevel);
+            Mat desc = cv::Mat(nkeypointsLevel, 32, CV_8U);
+            computeDescriptors(workingMat, keypoints, desc, pattern);
 
-        //float scale = mvScaleFactor; //getScale(level, firstLevel, scaleFactor);
-        int i = 0;
-        for (vector<KeypointAndDesc>::iterator keypoint = keypoints.begin(), keypointEnd = keypoints.end(); keypoint != keypointEnd; ++keypoint){
-            if(keypoint->posX >= vLappingArea[0] && keypoint->posX <= vLappingArea[1]){
-                //_keypoints.at(stereoIndex) = (*keypoint); //没有处理好
-                desc.row(i).copyTo(descriptors.row(stereoIndex));
-                stereoIndex--;
+            offset += nkeypointsLevel;
+
+
+            float scale = mvScaleFactor[level]; //getScale(level, firstLevel, scaleFactor);
+            int i = 0;
+            for (vector<KeyPoint>::iterator keypoint = keypoints.begin(),
+                         keypointEnd = keypoints.end(); keypoint != keypointEnd; ++keypoint){
+
+                // Scale keypoint coordinates
+                if (level != 0){
+                    keypoint->pt *= scale;
+                }
+
+                if(keypoint->pt.x >= vLappingArea[0] && keypoint->pt.x <= vLappingArea[1]){
+                    _keypoints.at(stereoIndex) = (*keypoint);
+                    desc.row(i).copyTo(descriptors.row(stereoIndex));
+                    stereoIndex--;
+                }
+                else{
+                    _keypoints.at(monoIndex) = (*keypoint);
+                    desc.row(i).copyTo(descriptors.row(monoIndex));
+                    monoIndex++;
+                }
+                i++;
             }
-            else{
-                //_keypoints.at(monoIndex) = (*keypoint);
-                desc.row(i).copyTo(descriptors.row(monoIndex));
-                monoIndex++;            
-            }
-        } 
+        }*/
+        int monoIndex = 0; // 暂时编译用
+
         return monoIndex;
     }
-}//namespace ORB_SLAM
+} // namespace CNN_SLAM3(OG:ORB_SLAM3)

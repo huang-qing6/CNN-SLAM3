@@ -259,8 +259,8 @@ protected:
     LoopClosing* mpLoopClosing;
 
     //ORB
-    FPGAextractor* mpORBextractorLeft, *mpORBextractorRight;
-    FPGAextractor* mpIniORBextractor;
+    CNNextractor* mpORBextractorLeft, *mpORBextractorRight;
+    CNNextractor* mpIniORBextractor;
 
     //BoW
     ORBVocabulary* mpORBVocabulary;
