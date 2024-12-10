@@ -193,7 +193,12 @@ namespace ORB_SLAM3{
         
         cv::resize(img, img, cv::Size(img_width, img_height));
 
-        #if defined(TORCH_NEW_API)
+
+            std::vector<int64_t> dims = {1, img_height, img_width, 1};
+            auto img_var = torch::from_blob(img.data, dims, torch::kFloat32).to(device);
+            img_var = img_var.permute({0,3,1,2});
+
+        /*#if defined(TORCH_NEW_API)
             std::vector<int64_t> dims = {1, img_height, img_width, 1};
             auto img_var = torch::from_blob(img.data, dims, torch::kFloat32).to(device);
             img_var = img_var.permute({0,3,1,2});
@@ -201,7 +206,7 @@ namespace ORB_SLAM3{
             auto img_tensor = torch::CPU(torch::kFloat32).tensorFromBlob(img.data, {1, img_height, img_width, 1});
             img_tensor = img_tensor.permute({0,3,1,2});
             auto img_var = torch::autograd::make_variable(img_tensor, false).to(device);
-        #endif
+        #endif*/
 
 /**  整体构思： 
  *  1.传入img开始提取特征点
@@ -213,19 +218,12 @@ namespace ORB_SLAM3{
 
         /*** axi ddr part ***/
 
-
-
-
-
-
-
-
-
         /*** end ***/
 
         std::vector<torch::jit::IValue> inputs;
         inputs.push_back(img_var);
-        auto output = module->forward(inputs).toTuple();
+        // auto output = module->forward(inputs).toTuple();
+        auto output = module.forward(inputs).toTuple();
 
         auto pts  = output->elements()[0].toTensor().to(torch::kCPU).squeeze();
         auto desc = output->elements()[1].toTensor().to(torch::kCPU).squeeze();
@@ -248,7 +246,7 @@ namespace ORB_SLAM3{
         _keypoints = vector<cv::KeyPoint>(nkeypoints);
         int offset = 0;
         //Modified for speeding up stereo fisheye matching
-        int monoIndex = 0, stereoIndex = nkeypoints-1;
+        /*int monoIndex = 0, stereoIndex = nkeypoints-1;
         for (int level = 0; level < nlevels; ++level)
         {
             vector<KeyPoint>& keypoints = allKeypoints[level];
@@ -290,8 +288,9 @@ namespace ORB_SLAM3{
                 }
                 i++;
             }
-        }
-
+        }*/
+        // 暂时没想好这里怎么改
+        int monoIndex = 0;
         return monoIndex;
     }
 } // namespace CNN_SLAM3(OG:ORB_SLAM3)
