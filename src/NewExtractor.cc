@@ -162,13 +162,13 @@ namespace ORB_SLAM3{
         // 初始化CNN
         const char *net_fn = getenv("CNN_PATH");
         net_fn = (net_fn == nullptr) ? "cnn.onnx" : net_fn; 
-        //module = torch::jit::load(net_fn);
+        module = /*make_shared<torch::jit::Module>*/torch::jit::load(net_fn);
     }
 
     int CNNextractor::operator()( InputArray _image, InputArray _mask, vector<KeyPoint>& _keypoints,
                                   OutputArray _descriptors, std::vector<int> &vLappingArea)
     {
-        /*
+        
         torch::DeviceType device_type;
         device_type = torch::kCUDA;
         troch::Device device(device_type);
@@ -202,6 +202,26 @@ namespace ORB_SLAM3{
             img_tensor = img_tensor.permute({0,3,1,2});
             auto img_var = torch::autograd::make_variable(img_tensor, false).to(device);
         #endif
+
+/**  整体构思： 
+ *  1.传入img开始提取特征点
+ *  2.axi总线通知pl端传入ddr的数据
+ *  3.axi总线收到信号，接收数据
+ *  4.将数据传入ps端部署的cnn后半部分
+ */
+
+
+        /*** axi ddr part ***/
+
+
+
+
+
+
+
+
+
+        /*** end ***/
 
         std::vector<torch::jit::IValue> inputs;
         inputs.push_back(img_var);
@@ -248,7 +268,6 @@ namespace ORB_SLAM3{
 
             offset += nkeypointsLevel;
 
-
             float scale = mvScaleFactor[level]; //getScale(level, firstLevel, scaleFactor);
             int i = 0;
             for (vector<KeyPoint>::iterator keypoint = keypoints.begin(),
@@ -271,8 +290,7 @@ namespace ORB_SLAM3{
                 }
                 i++;
             }
-        }*/
-        int monoIndex = 0; // 暂时编译用
+        }
 
         return monoIndex;
     }

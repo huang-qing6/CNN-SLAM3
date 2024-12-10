@@ -76,7 +76,7 @@ protected:
     std::vector<float> mvInvLevelSigma2;
 
     // 新增 CNN module
-    std::shared_ptr<torch::jit::script::Module> module;
+    /*std::shared_ptr<*/torch::jit::script::Module/*>*/ module; // 感觉还是需要弄上shraed ptr
 
 };
 
