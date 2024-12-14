@@ -17,8 +17,8 @@ namespace ORB_SLAM3{
     const int EDGE_THRESHOLD = 19;
 
 
-// 需要理解在初始化啥子
-    void CNN_Init(cv::Mat det, cv::Mat desc, std::vector<cv::KeyPoint>& pts, cv::Mat& descriptors,
+//  非极大值抑制
+    void CNN_nms(cv::Mat det, cv::Mat desc, std::vector<cv::KeyPoint>& pts, cv::Mat& descriptors,
         int border, int dist_thresh, int img_width, int img_height, float ratio_width, float ratio_height){
         /* 暂时不知道是写个啥子，对标GCN_SLAMv2的nms函数 */
         std::vector<cv::Point2f> pts_raw;
@@ -170,8 +170,8 @@ namespace ORB_SLAM3{
     {
         
         torch::DeviceType device_type;
-        device_type = torch::kCUDA;
-        troch::Device device(device_type);
+        device_type = torch::kFPGA; // 设备设置和kCUDA不同,不知道修改过后会发生什么
+        torch::Device device(device_type);
 
         if(_image.empty())
             return -1;
@@ -192,21 +192,10 @@ namespace ORB_SLAM3{
         float ratio_height = float(img.rows) / float(img_height);
         
         cv::resize(img, img, cv::Size(img_width, img_height));
-
-
-            std::vector<int64_t> dims = {1, img_height, img_width, 1};
-            auto img_var = torch::from_blob(img.data, dims, torch::kFloat32).to(device);
-            img_var = img_var.permute({0,3,1,2});
-
-        /*#if defined(TORCH_NEW_API)
-            std::vector<int64_t> dims = {1, img_height, img_width, 1};
-            auto img_var = torch::from_blob(img.data, dims, torch::kFloat32).to(device);
-            img_var = img_var.permute({0,3,1,2});
-        #else 
-            auto img_tensor = torch::CPU(torch::kFloat32).tensorFromBlob(img.data, {1, img_height, img_width, 1});
-            img_tensor = img_tensor.permute({0,3,1,2});
-            auto img_var = torch::autograd::make_variable(img_tensor, false).to(device);
-        #endif*/
+        std::vector<int64_t> dims = {1, img_height, img_width, 1};
+        // 新接口写法
+        auto img_var = torch::from_blob(img.data, dims, torch::kFloat32).to(device);
+        img_var = img_var.permute({0,3,1,2});
 
 /**  整体构思： 
  *  1.传入img开始提取特征点
@@ -214,8 +203,6 @@ namespace ORB_SLAM3{
  *  3.axi总线收到信号，接收数据
  *  4.将数据传入ps端部署的cnn后半部分
  */
-
-
         /*** axi ddr part ***/
 
         /*** end ***/
@@ -234,7 +221,7 @@ namespace ORB_SLAM3{
         std::vector<cv::KeyPoint> keypoints;
         cv::Mat descriptors;
         // nms(pts_mat, desc_mat, keypoints, descriptors, border, dist_thresh, img_width, img_height, ratio_width, ratio_height);
-        CNN_Init(pts_mat, desc_mat, keypoints, descriptors, border, dist_thresh, img_width, img_height, ratio_width, ratio_height);    
+        CNN_nms(pts_mat, desc_mat, keypoints, descriptors, border, dist_thresh, img_width, img_height, ratio_width, ratio_height);    
 
         _keypoints.insert(_keypoints.end(), keypoints.begin(), keypoints.end());
         
@@ -244,9 +231,9 @@ namespace ORB_SLAM3{
 
         
         _keypoints = vector<cv::KeyPoint>(nkeypoints);
-        int offset = 0;
+        /*int offset = 0;
         //Modified for speeding up stereo fisheye matching
-        /*int monoIndex = 0, stereoIndex = nkeypoints-1;
+        int monoIndex = 0, stereoIndex = nkeypoints-1;
         for (int level = 0; level < nlevels; ++level)
         {
             vector<KeyPoint>& keypoints = allKeypoints[level];

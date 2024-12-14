@@ -9,9 +9,9 @@
 #include <opencv2/opencv.hpp>
 
 // Compile will fail for opimizier since pytorch defined this, from GNN_SLAMv2
-#ifdef EIGEN_MPL2_ONLY
+/*#ifdef EIGEN_MPL2_ONLY
 #undef EIGEN_MPL2_ONLY
-#endif
+#endif*/
 
 namespace ORB_SLAM3{
 

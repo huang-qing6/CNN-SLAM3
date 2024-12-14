@@ -7,11 +7,18 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -O3 -ggdb -fPIC -rdynamic") #
 set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} ")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} ")
 
+#if(CONAN_LIBCXX STREQUAL "libstdc++11")
+#    add_definitions(-D_GLIBCXX_USE_CXX11_ABI=1)
+#elseif(CONAN_LIBCXX STREQUAL "libstdc++")
+#    add_definitions(-D_GLIBCXX_USE_CXX11_ABI=0)
+#endif()
+
+add_definitions(-D_GLIBCXX_USE_CXX11_ABI=0)
+
 include(CheckCXXCompilerFlag)
 CHECK_CXX_COMPILER_FLAG("-std=c++17" COMPILER_SUPPORTS_CXX17)
 CHECK_CXX_COMPILER_FLAG("-std=c++0x" COMPILER_SUPPORTS_CXX0X)
 set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_C_STANDARD 99)
 
 LIST(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake_modules)
 
@@ -26,6 +33,11 @@ include_directories(${OpenCV_INCLUDE_DIRS})
 set(CMAKE_PREFIX_PATH Thirdparty/Eigen3)
 find_package(Eigen3)
 include_directories(${EIGEN3_INCLUDE_DIRS})
+
+# pytorch
+set(Torch_DIR Thirdparty/pytorch/share/cmake/Torch)
+find_package(Torch REQUIRED)
+include_directories(${TORCH_INCLUDE_DIRS})
 
 include_directories(
 ${PROJECT_SOURCE_DIR}
@@ -54,6 +66,8 @@ add_library(${PROJECT_NAME} SHARED ${SRC_LIST})
 
 # g2o
 add_subdirectory(Thirdparty/g2o)
+
+# DBoW2
 add_subdirectory(Thirdparty/DBoW2)
 
 target_link_libraries(${PROJECT_NAME}
@@ -63,30 +77,20 @@ ${PROJECT_SOURCE_DIR}/Thirdparty/DBoW2/lib/libDBoW2.so
 ${PROJECT_SOURCE_DIR}/Thirdparty/g2o/lib/libg2o.so
 ${PROJECT_SOURCE_DIR}/Thirdparty/boost/lib/libboost_serialization.so
 ${PROJECT_SOURCE_DIR}/Thirdparty/openssl/lib/libcrypto.so
-# 加入libtorch,下面这些是一系列torch相关的共享库
-${PROJECT_SOURCE_DIR}/Thirdparty/pytorch/lib/libc10.so
-${PROJECT_SOURCE_DIR}/Thirdparty/pytorch/lib/libclog.a
-${PROJECT_SOURCE_DIR}/Thirdparty/pytorch/lib/libcpuinfo.a
-${PROJECT_SOURCE_DIR}/Thirdparty/pytorch/lib/libfmt.a
-${PROJECT_SOURCE_DIR}/Thirdparty/pytorch/lib/libprotobuf-lite.a
-${PROJECT_SOURCE_DIR}/Thirdparty/pytorch/lib/libprotobuf.a
-${PROJECT_SOURCE_DIR}/Thirdparty/pytorch/lib/libprotoc.a
-${PROJECT_SOURCE_DIR}/Thirdparty/pytorch/lib/libsleef.a
-${PROJECT_SOURCE_DIR}/Thirdparty/pytorch/lib/libtensorpipe_uv.a
-${PROJECT_SOURCE_DIR}/Thirdparty/pytorch/lib/libtensorpipe.a
-${PROJECT_SOURCE_DIR}/Thirdparty/pytorch/lib/libtorch_cpu.so
-${PROJECT_SOURCE_DIR}/Thirdparty/pytorch/lib/libtorch_global_deps.so
-${PROJECT_SOURCE_DIR}/Thirdparty/pytorch/lib/libtorch.so
+${Torch_LIBS}
 # 取消DMA,如有需要再用
 #${PROJECT_SOURCE_DIR}/Thirdparty/cma/lib/libcma.so
 #${PROJECT_SOURCE_DIR}/Thirdparty/DMA/lib/libaxidma.so
 )
 
 #------Build Examples-----#
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/Examples/Monocular)
+#set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/Examples/Monocular)
 
-add_executable(mono_euroc ${PROJECT_SOURCE_DIR}/Examples/Monocular/mono_euroc.cc)
-target_link_libraries(mono_euroc ${PROJECT_NAME} ${OpenCV_LIBS})
+#add_executable(mono_euroc ${PROJECT_SOURCE_DIR}/Examples/Monocular/mono_euroc.cc)
+#target_link_libraries(mono_euroc ${PROJECT_NAME}
+#)
+
+# 废弃
 
 #set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/Examples/cma_test)
 #add_executable(cma_test ${PROJECT_SOURCE_DIR}/Examples/cma_test/cma_test.c)
