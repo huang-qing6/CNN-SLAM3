@@ -1,0 +1,2 @@
+Thirdparty/pytorch.zip filter=lfs diff=lfs merge=lfs -text
+Thirdparty/g2o/lib/libg2o.so filter=lfs diff=lfs merge=lfs -text
