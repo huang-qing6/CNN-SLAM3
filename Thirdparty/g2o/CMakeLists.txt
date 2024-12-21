@@ -5,6 +5,7 @@ project(g2o)
 set(CMAKE_PREFIX_PATH ${PROJECT_SOURCE_DIR}/../Eigen3 )
 find_package(Eigen3)
 include_directories(${EIGEN3_INCLUDE_DIRS})
+set(CMAKE_CXX_STANDARD 11)
 #build g2o.so
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}  -Wall  -W -O3 ")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall  -W -O3")

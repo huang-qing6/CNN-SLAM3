@@ -1,4 +1,4 @@
-prefix=/home/mario/zynq-mpsoc-slam3/Thirdparty/Eigen3
+prefix=/home/mario/gitee/CNN-SLAM3/Thirdparty/Eigen3
 exec_prefix=${prefix}
 
 Name: Eigen3

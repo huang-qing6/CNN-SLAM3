@@ -15,10 +15,10 @@ mark_as_advanced(boost_prg_exec_monitor_DIR)
 get_filename_component(_BOOST_CMAKEDIR "${CMAKE_CURRENT_LIST_DIR}/../" REALPATH)
 
 # If the computed and the original directories are symlink-equivalent, use original
-if(EXISTS "/home/mario/zynq-mpsoc-slam3/Thirdparty/boost/lib/cmake")
-  get_filename_component(_BOOST_CMAKEDIR_ORIGINAL "/home/mario/zynq-mpsoc-slam3/Thirdparty/boost/lib/cmake" REALPATH)
+if(EXISTS "/home/mario/gitee/CNN-SLAM3/Thirdparty/boost/lib/cmake")
+  get_filename_component(_BOOST_CMAKEDIR_ORIGINAL "/home/mario/gitee/CNN-SLAM3/Thirdparty/boost/lib/cmake" REALPATH)
   if(_BOOST_CMAKEDIR STREQUAL _BOOST_CMAKEDIR_ORIGINAL)
-    set(_BOOST_CMAKEDIR "/home/mario/zynq-mpsoc-slam3/Thirdparty/boost/lib/cmake")
+    set(_BOOST_CMAKEDIR "/home/mario/gitee/CNN-SLAM3/Thirdparty/boost/lib/cmake")
   endif()
   unset(_BOOST_CMAKEDIR_ORIGINAL)
 endif()
