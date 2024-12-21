@@ -21,13 +21,14 @@
 #include<fstream>
 #include<chrono>
 #include<opencv2/core/core.hpp>
-#include<torch/torch.h>
+// #include "torch/script.h"
+// #include "torch/torch.h"
 
 #include<System.h>
 
 using namespace std;
 using namespace cv;
-using namespace torch;
+// using namespace torch;
 
 void LoadImages(const string &strImagePath, const string &strPathTimes,
                 vector<string> &vstrImages, vector<double> &vTimeStamps);

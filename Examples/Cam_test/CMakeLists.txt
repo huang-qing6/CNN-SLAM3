@@ -1,61 +1,61 @@
 cmake_minimum_required(VERSION 3.5.0)
 project(usb_cam)
 
+add_definitions(-D_GLIBCXX_USE_CXX11_ABI=0)
+
+include(CheckCXXCompilerFlag)
+CHECK_CXX_COMPILER_FLAG("-std=c++17" COMPILER_SUPPORTS_CXX17)
+set(CMAKE_CXX_STANDARD 17)
+
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}  -Wall  -O3")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall  -O3")
 
-# Check C++11 or C++0x support
-include(CheckCXXCompilerFlag)
-CHECK_CXX_COMPILER_FLAG("-std=c++11" COMPILER_SUPPORTS_CXX11)
-CHECK_CXX_COMPILER_FLAG("-std=c++0x" COMPILER_SUPPORTS_CXX0X)
-if(COMPILER_SUPPORTS_CXX11)
-   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
-   add_definitions(-DCOMPILEDWITHC11)
-   message(STATUS "Using flag -std=c++11.")
-elseif(COMPILER_SUPPORTS_CXX0X)
-   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
-   add_definitions(-DCOMPILEDWITHC0X)
-   message(STATUS "Using flag -std=c++0x.")
-else()
-   message(FATAL_ERROR "The compiler ${CMAKE_CXX_COMPILER} has no C++11 support. Please use a different C++ compiler.")
-endif()
-
-LIST(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/../../../cmake_modules)
-
+# opencv
+set(OpenCV_DIR  ../../Thirdparty/opencv/lib/cmake/opencv4) 
 find_package(OpenCV REQUIRED)
-if(NOT OpenCV_FOUND)
-      message(FATAL_ERROR "OpenCV > 4 not found.")
-endif()
+include_directories(${OpenCV_INCLUDE_DIRS})
 
-find_package(Eigen3 REQUIRED)
-find_package(Pangolin REQUIRED)
+set(CMAKE_PREFIX_PATH ../../Thirdparty/Eigen3)
+find_package(Eigen3)
+include_directories(${EIGEN3_INCLUDE_DIRS})
+
+# pytorch
+set(Torch_DIR ../../Thirdparty/pytorch/share/cmake/Torch)
+find_package(Torch REQUIRED)
+include_directories(${TORCH_INCLUDE_DIRS})
+
+# openssl
+set(OPENSSL_ROOT_DIR ../../Thirdparty/openssl)
+find_package(OpenSSL REQUIRED)
+include_directories(${OPENSSL_INCLUDE_DIR})
 
 include_directories(
-${OpenCV_INCLUDE_DIRS}
-${PROJECT_SOURCE_DIR}
 ${PROJECT_SOURCE_DIR}/../../
 ${PROJECT_SOURCE_DIR}/../../include
 ${PROJECT_SOURCE_DIR}/../../include/CameraModels
+${PROJECT_SOURCE_DIR}/../../Thirdparty
 ${PROJECT_SOURCE_DIR}/../../Thirdparty/Sophus
-${Pangolin_INCLUDE_DIRS}
+${PROJECT_SOURCE_DIR}/../../Thirdparty/boost/include
 )
 
 set(LIBS 
+${PROJECT_SOURCE_DIR}/../../lib/libcnn-slam3.so
 ${OpenCV_LIBS}
-${EIGEN3_LIBS}
-${Pangolin_LIBRARIES}
-${PROJECT_SOURCE_DIR}/../../Thirdparty/DBoW2/lib/libDBoW2.so
-${PROJECT_SOURCE_DIR}/../../lib/libORB_SLAM3.so
--lboost_system
+#${PROJECT_SOURCE_DIR}/../../Thirdparty/opencv/lib/libopencv_highgui.so
+#${EIGEN3_LIBS}
+#${PROJECT_SOURCE_DIR}/../../Thirdparty/pytorch/lib/libtorch_cpu.so
+#${Torch_LIBS}
+#${PROJECT_SOURCE_DIR}/../../Thirdparty/DBoW2/lib/libDBoW2.so
+#${PROJECT_SOURCE_DIR}/../../Thirdparty/g2o/lib/libg2o.so
+${PROJECT_SOURCE_DIR}/../../Thirdparty/boost/lib/libboost_serialization.so
+#${PROJECT_SOURCE_DIR}/../../Thirdparty/openssl/lib64/libcrypto.so
 )
 
 # Node for monocular camera
 add_executable(Mono
-src/mono.cc
+${PROJECT_SOURCE_DIR}/src/mono.cc
 )
 
-target_link_libraries(Mono
+target_link_libraries(Mono 
 ${LIBS}
-boost_system
-boost_filesystem
 )

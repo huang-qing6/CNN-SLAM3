@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.5.0)
-project(zynq-slam3 VERSION 0.1.0 LANGUAGES C CXX)
+project(cnn-slam3 VERSION 0.1.0 LANGUAGES C CXX)
 ##----------------add settings-------------------##
 set(CMAKE_BUILD_TYPE "Realse") #Debug
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -O3 -ggdb -fPIC -rdynamic") # 
@@ -7,24 +7,19 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -O3 -ggdb -fPIC -rdynamic") #
 set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} ")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} ")
 
-#if(CONAN_LIBCXX STREQUAL "libstdc++11")
-#    add_definitions(-D_GLIBCXX_USE_CXX11_ABI=1)
-#elseif(CONAN_LIBCXX STREQUAL "libstdc++")
-#    add_definitions(-D_GLIBCXX_USE_CXX11_ABI=0)
-#endif()
-
-add_definitions(-D_GLIBCXX_USE_CXX11_ABI=0)
-
 include(CheckCXXCompilerFlag)
 CHECK_CXX_COMPILER_FLAG("-std=c++17" COMPILER_SUPPORTS_CXX17)
 CHECK_CXX_COMPILER_FLAG("-std=c++0x" COMPILER_SUPPORTS_CXX0X)
+
 set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 LIST(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake_modules)
 
 ##--------------------link-library---------------------##
 # opencv
-set(OpenCV_DIR  Thirdparty/opencv/lib/cmake/opencv4) 
+#set(OpenCV_DIR  Thirdparty/opencv/lib/cmake/opencv4) 
+set(OpenCV_DIR  Thirdparty/opencv/share/OpenCV) 
 find_package(OpenCV REQUIRED)
 include_directories(${OpenCV_INCLUDE_DIRS})
 # Eigen
@@ -38,17 +33,27 @@ include_directories(${EIGEN3_INCLUDE_DIRS})
 set(Torch_DIR Thirdparty/pytorch/share/cmake/Torch)
 find_package(Torch REQUIRED)
 include_directories(${TORCH_INCLUDE_DIRS})
+add_definitions(-D_GLIBCXX_USE_CXX11_ABI=1) #新旧版本c++11导致libtorch的错误
+
+# BOOST
+set(BOOST_ROOT Thirdparty/boost)
+find_package(Boost COMPONENTS serialization system filesystem REQUIRED)
+if(Boost_FOUND)
+  message(STATUS "Boost found: ${Boost_VERSION}")
+  include_directories(${BOOST_INCLUDE_DIRS})
+else()
+  message(FATAL_ERROR "Boost not found")
+endif()
 
 include_directories(
 ${PROJECT_SOURCE_DIR}
 ${PROJECT_SOURCE_DIR}/include
 ${PROJECT_SOURCE_DIR}/include/CameraModels
-#${PROJECT_SOURCE_DIR}/include/FPGA
 ${PROJECT_SOURCE_DIR}/Thirdparty
 ${PROJECT_SOURCE_DIR}/Thirdparty/Sophus
-${PROJECT_SOURCE_DIR}/Thirdparty/boost/include
 ${PROJECT_SOURCE_DIR}/Thirdparty/Eigen3/include/eigen3
-#${PROJECT_SOURCE_DIR}/Thirdparty/DMA/include
+${PROJECT_SOURCE_DIR}/Thirdparty/boost/include
+${PROJECT_SOURCE_DIR}/Thirdparty/openssl/include
 ${PROJECT_SOURCE_DIR}/Thirdparty/pytorch/include
 ${PROJECT_SOURCE_DIR}/Thirdparty/pytorch/include/torch/csrc/api/include
 )
@@ -57,7 +62,6 @@ file(GLOB SRC_LIST
 "src/*.cc" 
 "src/*.cpp" 
 "src/CameraModels/*.cpp" 
-#"Thirdparty/cma/*.h"
 )
 
 # libSLAM3
@@ -71,34 +75,20 @@ add_subdirectory(Thirdparty/g2o)
 add_subdirectory(Thirdparty/DBoW2)
 
 target_link_libraries(${PROJECT_NAME}
+${TORCH_LIBS}
 ${OpenCV_LIBS}
 ${EIGEN3_LIBS}
-${PROJECT_SOURCE_DIR}/Thirdparty/DBoW2/lib/libDBoW2.so
 ${PROJECT_SOURCE_DIR}/Thirdparty/g2o/lib/libg2o.so
-${PROJECT_SOURCE_DIR}/Thirdparty/boost/lib/libboost_serialization.so
-${PROJECT_SOURCE_DIR}/Thirdparty/openssl/lib/libcrypto.so
-${Torch_LIBS}
-# 取消DMA,如有需要再用
-#${PROJECT_SOURCE_DIR}/Thirdparty/cma/lib/libcma.so
-#${PROJECT_SOURCE_DIR}/Thirdparty/DMA/lib/libaxidma.so
+${PROJECT_SOURCE_DIR}/Thirdparty/DBoW2/lib/libDBoW2.so
+${Boost_LIBRARIES}
+${PROJECT_SOURCE_DIR}/Thirdparty/openssl/lib64/libcrypto.so
 )
 
 #------Build Examples-----#
-#set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/Examples/Monocular)
+#add_executable(Mono Examples/Cam_test/src/mono.cc)
+#target_link_libraries(Mono ${PROJECT_NAME})
 
-#add_executable(mono_euroc ${PROJECT_SOURCE_DIR}/Examples/Monocular/mono_euroc.cc)
-#target_link_libraries(mono_euroc ${PROJECT_NAME}
-#)
-
-# 废弃
-
-#set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/Examples/cma_test)
-#add_executable(cma_test ${PROJECT_SOURCE_DIR}/Examples/cma_test/cma_test.c)
-#target_link_libraries(cma_test 
-#-lpthread
-#${PROJECT_SOURCE_DIR}/Thirdparty/cma/lib/libcma.so)
-#set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/Examples/cma_test)
-#add_executable(cma_test ${PROJECT_SOURCE_DIR}/Examples/cma_test/cma_test.c)
-#target_link_libraries(cma_test 
-#-lpthread
-#${PROJECT_SOURCE_DIR}/Thirdparty/cma/lib/libcma.so)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/Examples/Monocular)
+add_executable(mono_euroc Examples/Monocular/mono_euroc.cc)
+set_target_properties(mono_euroc PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
+target_link_libraries(mono_euroc ${PROJECT_NAME} ${OpenCV_LIBS})

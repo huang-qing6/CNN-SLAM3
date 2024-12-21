@@ -17,10 +17,9 @@ namespace ORB_SLAM3{
     const int EDGE_THRESHOLD = 19;
 
 
-//  非极大值抑制
+    // 非极大值抑制
     void CNN_nms(cv::Mat det, cv::Mat desc, std::vector<cv::KeyPoint>& pts, cv::Mat& descriptors,
         int border, int dist_thresh, int img_width, int img_height, float ratio_width, float ratio_height){
-        /* 暂时不知道是写个啥子，对标GCN_SLAMv2的nms函数 */
         std::vector<cv::Point2f> pts_raw;
 
         for (int i = 0; i < det.rows; i++){
@@ -159,10 +158,10 @@ namespace ORB_SLAM3{
             ++v0;
         }
 
-        // 初始化CNN
-        const char *net_fn = getenv("CNN_PATH");
-        net_fn = (net_fn == nullptr) ? "cnn.onnx" : net_fn; 
-        module = /*make_shared<torch::jit::Module>*/torch::jit::load(net_fn);
+        // 初始化CNN，禁用
+        // const char *net_fn = getenv("CNN_PATH");
+        // net_fn = (net_fn == nullptr) ? "cnn.onnx" : net_fn; 
+        // module = /*make_shared<torch::jit::Module>*/torch::jit::load(net_fn);
     }
 
     int CNNextractor::operator()( InputArray _image, InputArray _mask, vector<KeyPoint>& _keypoints,
@@ -170,7 +169,7 @@ namespace ORB_SLAM3{
     {
         
         torch::DeviceType device_type;
-        device_type = torch::kFPGA; // 设备设置和kCUDA不同,不知道修改过后会发生什么
+        device_type = torch::kCUDA; // 设备设置和kCUDA不同,不知道修改过后会发生什么
         torch::Device device(device_type);
 
         if(_image.empty())
@@ -194,8 +193,8 @@ namespace ORB_SLAM3{
         cv::resize(img, img, cv::Size(img_width, img_height));
         std::vector<int64_t> dims = {1, img_height, img_width, 1};
         // 新接口写法
-        auto img_var = torch::from_blob(img.data, dims, torch::kFloat32).to(device);
-        img_var = img_var.permute({0,3,1,2});
+        //auto img_var = torch::from_blob(img.data, dims, torch::kFloat32).to(device);
+        //img_var = img_var.permute({0,3,1,2});
 
 /**  整体构思： 
  *  1.传入img开始提取特征点
@@ -207,11 +206,20 @@ namespace ORB_SLAM3{
 
         /*** end ***/
 
-        std::vector<torch::jit::IValue> inputs;
-        inputs.push_back(img_var);
-        // auto output = module->forward(inputs).toTuple();
-        auto output = module.forward(inputs).toTuple();
+        /*std::vector<torch::jit::IValue> inputs;
+        inputs.push_back(img_var);*/
+        // auto output = module->forward(inputs).toTuple(); 不用模型了
+        // 添加后处理
 
+        // keypoint 处理
+        // torch::nn::softmax // softmax
+        // torch::reshape // sp里有实现 pixel_shuffle
+        // keypoint W * H * 1
+
+        // desc 处理
+        // torch::nn::functional::interpolate
+        // torch::nn::functional::normalize
+/*
         auto pts  = output->elements()[0].toTensor().to(torch::kCPU).squeeze();
         auto desc = output->elements()[1].toTensor().to(torch::kCPU).squeeze();
 
@@ -229,8 +237,9 @@ namespace ORB_SLAM3{
         _descriptors.create(nkeypoints, 32, CV_8U);
         descriptors.copyTo(_descriptors.getMat());
 
-        
-        _keypoints = vector<cv::KeyPoint>(nkeypoints);
+        _keypoints = vector<cv::KeyPoint>(nkeypoints);        
+*/
+
         /*int offset = 0;
         //Modified for speeding up stereo fisheye matching
         int monoIndex = 0, stereoIndex = nkeypoints-1;

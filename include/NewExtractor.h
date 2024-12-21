@@ -74,10 +74,6 @@ protected:
     std::vector<float> mvInvScaleFactor;    
     std::vector<float> mvLevelSigma2;
     std::vector<float> mvInvLevelSigma2;
-
-    // 新增 CNN module
-    /*std::shared_ptr<*/torch::jit::script::Module/*>*/ module; // 感觉还是需要弄上shraed ptr
-
 };
 
 } // namespace CNN_SLAM3(OG:ORB_SLAM3)
