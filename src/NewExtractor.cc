@@ -9,6 +9,7 @@
 
 using namespace cv;
 using namespace std;
+namespace F = torch::nn::functional;
 
 namespace ORB_SLAM3{
 
@@ -167,16 +168,11 @@ namespace ORB_SLAM3{
     int CNNextractor::operator()( InputArray _image, InputArray _mask, vector<KeyPoint>& _keypoints,
                                   OutputArray _descriptors, std::vector<int> &vLappingArea)
     {
-        
-        torch::DeviceType device_type;
-        device_type = torch::kCUDA; // 设备设置和kCUDA不同,不知道修改过后会发生什么
-        torch::Device device(device_type);
-
         if(_image.empty())
             return -1;
 
         Mat image = _image.getMat();
-        assert(image.type() == CV_8UC1 );
+        assert(image.type() == CV_8UC1);
 
         Mat img;
         // 为什么要转大小？
@@ -191,10 +187,6 @@ namespace ORB_SLAM3{
         float ratio_height = float(img.rows) / float(img_height);
         
         cv::resize(img, img, cv::Size(img_width, img_height));
-        std::vector<int64_t> dims = {1, img_height, img_width, 1};
-        // 新接口写法
-        //auto img_var = torch::from_blob(img.data, dims, torch::kFloat32).to(device);
-        //img_var = img_var.permute({0,3,1,2});
 
 /**  整体构思： 
  *  1.传入img开始提取特征点
@@ -211,18 +203,39 @@ namespace ORB_SLAM3{
         // auto output = module->forward(inputs).toTuple(); 不用模型了
         // 添加后处理
 
-        // keypoint 处理
-        // torch::nn::softmax // softmax
+        // keypoint 处理,输入大小 360/8 * 240/8 * 65 处理后输出 W * H * 1
+        vector<int64_t> keypoints_test_dim = {65, 64, img_height, img_width};
+        torch::Tensor keypoints_test = torch::randn(keypoints_test_dim);    
+
+        // 参考 auto pts  = output->elements()[0].toTensor().to(torch::kCPU).squeeze();    
+        auto keypoints = torch::softmax(keypoints_test,1); // softmax,[B,64,H,W]
         // torch::reshape // sp里有实现 pixel_shuffle
-        // keypoint W * H * 1
 
-        // desc 处理
-        // torch::nn::functional::interpolate
-        // torch::nn::functional::normalize
-/*
-        auto pts  = output->elements()[0].toTensor().to(torch::kCPU).squeeze();
+        // 新接口写法
+        // std::vector<int64_t> dims = {1, img_height, img_width, 1}; 维度描述
+        // auto img_var = torch::from_blob(img.data, dims, torch::kFloat32).to(device);
+        // img_var = img_var.permute({0,3,1,2});
+
+        // desc 处理， 输入大小 360/8 * 240/8 * 256， 输出256 * 360 *240
+        vector<int64_t> desc_test_dim = {256, 64, img_height, img_width}; // [B,64,H,W]
+        torch::Tensor desc_test = torch::randn(desc_test_dim);
+
+        vector<double> grid_size {8};
+        F::interpolate(desc_test,
+        F::InterpolateFuncOptions().mode(torch::kBilinear).align_corners(false).scale_factor(grid_size));
+
+        F::normalize(desc_test,
+        F::NormalizeFuncOptions().p(2).dim(1));
+
+
+      // 原特征点描述子，现不用了
+      /*
+        
         auto desc = output->elements()[1].toTensor().to(torch::kCPU).squeeze();
+*/
 
+/*
+        // 结果保存处
         cv::Mat pts_mat(cv::Size(3, pts.size(0)), CV_32FC1, pts.data<float>());
         cv::Mat desc_mat(cv::Size(32, pts.size(0)), CV_8UC1, desc.data<unsigned char>());
 
