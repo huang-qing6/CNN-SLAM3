@@ -17,6 +17,27 @@ namespace ORB_SLAM3{
     const int HALF_PATCH_SIZE = 15;
     const int EDGE_THRESHOLD = 19;
 
+    /**原superpoint的shuffle
+     * Input:
+     *  keypoint: 特征点,大小为[65, 64, img_height/8, img_width/8]
+     *  grid_size: 大小为8,与原版不同
+     * Output:
+     *  处理后的keypoint [65, 1, img_height, img_width]
+     */
+    torch::Tensor CNN_shuffle(torch::Tensor &tensor, const int64_t& scale_factor){
+        int64_t num, ch, height, width;
+        num = tensor.size(0);
+        ch = tensor.size(1);
+        height = tensor.size(2);
+        width = tensor.size(3);
+
+        // assert ch % (scale_factor * scale_factor) == 0? 64/(8*8)确实等于0
+        tensor = tensor.reshape({num, ch / (scale_factor * scale_factor), scale_factor, scale_factor, height, width});
+        tensor = tensor.permute({0, 1, 4, 2, 5, 3});
+        tensor = tensor.reshape({num, ch / (scale_factor * scale_factor), scale_factor * height, scale_factor * width});
+
+        return tensor;
+    }
 
     // 非极大值抑制
     void CNN_nms(cv::Mat det, cv::Mat desc, std::vector<cv::KeyPoint>& pts, cv::Mat& descriptors,
@@ -188,70 +209,49 @@ namespace ORB_SLAM3{
         
         cv::resize(img, img, cv::Size(img_width, img_height));
 
-/**  整体构思： 
- *  1.传入img开始提取特征点
- *  2.axi总线通知pl端传入ddr的数据
- *  3.axi总线收到信号，接收数据
- *  4.将数据传入ps端部署的cnn后半部分
- */
-        /*** axi ddr part ***/
+    // 1.图像传至PL
+        
 
-        /*** end ***/
+    // 2.从PL获取特征点和描述子的raw_data
+        
 
-        /*std::vector<torch::jit::IValue> inputs;
-        inputs.push_back(img_var);*/
-        // auto output = module->forward(inputs).toTuple(); 不用模型了
-        // 添加后处理
+    // 3.处理raw_keypoint 输入大小 360/8 * 240/8 * 65 处理后输出 W * H * 1; 现在假设输出的是keypoints_test
+        vector<double> grid_size {8};
+        int64_t scale_factor;
 
-        // keypoint 处理,输入大小 360/8 * 240/8 * 65 处理后输出 W * H * 1
-        vector<int64_t> keypoints_test_dim = {65, 64, img_height, img_width};
-        torch::Tensor keypoints_test = torch::randn(keypoints_test_dim);    
+        vector<int64_t> keypoint_test_dim = {65, 64, img_height, img_width};
+        torch::Tensor keypoint_test = torch::randn(keypoint_test_dim);    
 
         // 参考 auto pts  = output->elements()[0].toTensor().to(torch::kCPU).squeeze();    
-        auto keypoints = torch::softmax(keypoints_test,1); // softmax,[B,64,H,W]
+        auto keypoint = torch::softmax(keypoint_test,1); // softmax,[B, 64, H/8, W/8]
         // torch::reshape // sp里有实现 pixel_shuffle
+        keypoint = CNN_shuffle(keypoint, scale_factor);
+        auto keypoint_res = keypoint.squeeze(1); //不确定squeeze这样不指定就行，最后压缩至[B, W, H]
 
-        // 新接口写法
-        // std::vector<int64_t> dims = {1, img_height, img_width, 1}; 维度描述
-        // auto img_var = torch::from_blob(img.data, dims, torch::kFloat32).to(device);
-        // img_var = img_var.permute({0,3,1,2});
-
-        // desc 处理， 输入大小 360/8 * 240/8 * 256， 输出256 * 360 *240
+    // 4.处理raw_desc 输入大小 360/8 * 240/8 * 256， 输出256 * 360 *240; 现在假设输出的是desc_test
+        // desc 处理， 
         vector<int64_t> desc_test_dim = {256, 64, img_height, img_width}; // [B,64,H,W]
         torch::Tensor desc_test = torch::randn(desc_test_dim);
 
-        vector<double> grid_size {8};
-        F::interpolate(desc_test,
+        desc_test = F::interpolate(desc_test, 
         F::InterpolateFuncOptions().mode(torch::kBilinear).align_corners(false).scale_factor(grid_size));
+        auto desc = F::normalize(desc_test, F::NormalizeFuncOptions().p(2).dim(1));
 
-        F::normalize(desc_test,
-        F::NormalizeFuncOptions().p(2).dim(1));
-
-
-      // 原特征点描述子，现不用了
-      /*
-        
-        auto desc = output->elements()[1].toTensor().to(torch::kCPU).squeeze();
-*/
-
-/*
-        // 结果保存处
-        cv::Mat pts_mat(cv::Size(3, pts.size(0)), CV_32FC1, pts.data<float>());
-        cv::Mat desc_mat(cv::Size(32, pts.size(0)), CV_8UC1, desc.data<unsigned char>());
-
+    // 5.保存结果
         std::vector<cv::KeyPoint> keypoints;
-        cv::Mat descriptors;
+        cv::Mat descriptors;        
+        cv::Mat pts_mat(cv::Size(3, keypoint_res.size(0)), CV_32FC1, keypoint.data<float>());
+        cv::Mat desc_mat(cv::Size(32, keypoint_res.size(0)), CV_8UC1, desc.data<unsigned char>());
+
+        // 非最大值抑制
         // nms(pts_mat, desc_mat, keypoints, descriptors, border, dist_thresh, img_width, img_height, ratio_width, ratio_height);
         CNN_nms(pts_mat, desc_mat, keypoints, descriptors, border, dist_thresh, img_width, img_height, ratio_width, ratio_height);    
 
-        _keypoints.insert(_keypoints.end(), keypoints.begin(), keypoints.end());
-        
+        _keypoints.insert(_keypoints.end(), keypoints.begin(), keypoints.end());        
         int nkeypoints = keypoints.size();
         _descriptors.create(nkeypoints, 32, CV_8U);
         descriptors.copyTo(_descriptors.getMat());
-
-        _keypoints = vector<cv::KeyPoint>(nkeypoints);        
-*/
+        _keypoints = vector<cv::KeyPoint>(nkeypoints);  
 
         /*int offset = 0;
         //Modified for speeding up stereo fisheye matching
