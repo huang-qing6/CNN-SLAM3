@@ -1,3 +1,0 @@
-/home/mario/gitee/CNN-SLAM3/Thirdparty/DBoW2/builf/CMakeFiles/DBoW2.dir
-/home/mario/gitee/CNN-SLAM3/Thirdparty/DBoW2/builf/CMakeFiles/edit_cache.dir
-/home/mario/gitee/CNN-SLAM3/Thirdparty/DBoW2/builf/CMakeFiles/rebuild_cache.dir

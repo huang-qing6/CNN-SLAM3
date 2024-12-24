@@ -215,7 +215,7 @@ namespace ORB_SLAM3{
     // 2.从PL获取特征点和描述子的raw_data
         
 
-    // 3.处理raw_keypoint 输入大小 360/8 * 240/8 * 65 处理后输出 W * H * 1; 现在假设输出的是keypoints_test //[1*65*H/8*W/8] => [1*1*H*W] //默认H=240 W=360
+    // 3.处理raw_keypoint 现在假设输出的是keypoints_test //[1*65*H/8*W/8] => [1*1*H*W] //默认H=240 W=360
         vector<double> grid_size {8};
         int64_t scale_factor;
 
@@ -224,13 +224,14 @@ namespace ORB_SLAM3{
 
         // 参考 auto pts  = output->elements()[0].toTensor().to(torch::kCPU).squeeze();    
         auto keypoint = torch::softmax(keypoint_test,1); // softmax,[B, 65, H/8, W/8]
-        // 还需要删除一行通道变成[B, 64 ,H ,W]
+        // 还差一个65通道减少为64的操作 [B, 64, H/8, W/8]
+        // TODO
 
         // torch::reshape // sp里有实现 pixel_shuffle
         keypoint = CNN_shuffle(keypoint, scale_factor); // [B, 1, H, W]
         auto keypoint_res = keypoint.squeeze(1); //不确定squeeze这样不指定就行，最后压缩至[B, W, H]
 
-    // 4.处理raw_desc 输入大小 360/8 * 240/8 * 256， 输出256 * 360 *240; 现在假设输出的是desc_test [1*256*H/8*W/8] => [1*256*H*W]
+    // 4.处理raw_desc 现在假设输出的是desc_test [1*256*H/8*W/8] => [1*256*H*W]
         // desc 处理， 
         vector<int64_t> desc_test_dim = {1, 256, img_height, img_width}; // [B,256,H/8,W/8]
         torch::Tensor desc_test = torch::randn(desc_test_dim);
@@ -246,7 +247,6 @@ namespace ORB_SLAM3{
         cv::Mat desc_mat(cv::Size(32, keypoint_res.size(0)), CV_8UC1, desc.data<unsigned char>());
 
         // 非最大值抑制
-        // nms(pts_mat, desc_mat, keypoints, descriptors, border, dist_thresh, img_width, img_height, ratio_width, ratio_height);
         CNN_nms(pts_mat, desc_mat, keypoints, descriptors, border, dist_thresh, img_width, img_height, ratio_width, ratio_height);    
 
         _keypoints.insert(_keypoints.end(), keypoints.begin(), keypoints.end());        
@@ -304,4 +304,9 @@ namespace ORB_SLAM3{
         int monoIndex = 0;
         return monoIndex;
     }
+<<<<<<< HEAD
 } // namespace CNN_SLAM3(OG:ORB_SLAM3)
+
+=======
+} // namespace CNN_SLAM3(OG:ORB_SLAM3)
+>>>>>>> parent of 0f353e62... Update NewExtractor.cc
