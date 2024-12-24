@@ -19,10 +19,10 @@ namespace ORB_SLAM3{
 
     /**原superpoint的shuffle
      * Input:
-     *  keypoint: 特征点,大小为[65, 64, img_height/8, img_width/8]
+     *  keypoint: 特征点,大小为[B, 64, img_height/8, img_width/8]
      *  grid_size: 大小为8,与原版不同
      * Output:
-     *  处理后的keypoint [65, 1, img_height, img_width]
+     *  处理后的keypoint [B, 1, img_height, img_width]
      */
     torch::Tensor CNN_shuffle(torch::Tensor &tensor, const int64_t& scale_factor){
         int64_t num, ch, height, width;
@@ -223,14 +223,16 @@ namespace ORB_SLAM3{
         torch::Tensor keypoint_test = torch::randn(keypoint_test_dim);    
 
         // 参考 auto pts  = output->elements()[0].toTensor().to(torch::kCPU).squeeze();    
-        auto keypoint = torch::softmax(keypoint_test,1); // softmax,[B, 64, H/8, W/8]
+        auto keypoint = torch::softmax(keypoint_test,1); // softmax,[B, 65, H/8, W/8]
+        // 还需要删除一行通道变成[B, 64 ,H ,W]
+
         // torch::reshape // sp里有实现 pixel_shuffle
-        keypoint = CNN_shuffle(keypoint, scale_factor);
+        keypoint = CNN_shuffle(keypoint, scale_factor); // [B, 1, H, W]
         auto keypoint_res = keypoint.squeeze(1); //不确定squeeze这样不指定就行，最后压缩至[B, W, H]
 
     // 4.处理raw_desc 输入大小 360/8 * 240/8 * 256， 输出256 * 360 *240; 现在假设输出的是desc_test
         // desc 处理， 
-        vector<int64_t> desc_test_dim = {256, 64, img_height, img_width}; // [B,64,H,W]
+        vector<int64_t> desc_test_dim = {1, 256, img_height, img_width}; // [B,256,H/8,W/8]
         torch::Tensor desc_test = torch::randn(desc_test_dim);
 
         desc_test = F::interpolate(desc_test, 
