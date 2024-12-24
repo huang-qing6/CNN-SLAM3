@@ -215,7 +215,7 @@ namespace ORB_SLAM3{
     // 2.从PL获取特征点和描述子的raw_data
         
 
-    // 3.处理raw_keypoint 输入大小 360/8 * 240/8 * 65 处理后输出 W * H * 1; 现在假设输出的是keypoints_test
+    // 3.处理raw_keypoint 输入大小 360/8 * 240/8 * 65 处理后输出 W * H * 1; 现在假设输出的是keypoints_test //[1*65*H/8*W/8] => [1*1*H*W] //默认H=240 W=360
         vector<double> grid_size {8};
         int64_t scale_factor;
 
@@ -230,7 +230,7 @@ namespace ORB_SLAM3{
         keypoint = CNN_shuffle(keypoint, scale_factor); // [B, 1, H, W]
         auto keypoint_res = keypoint.squeeze(1); //不确定squeeze这样不指定就行，最后压缩至[B, W, H]
 
-    // 4.处理raw_desc 输入大小 360/8 * 240/8 * 256， 输出256 * 360 *240; 现在假设输出的是desc_test
+    // 4.处理raw_desc 输入大小 360/8 * 240/8 * 256， 输出256 * 360 *240; 现在假设输出的是desc_test [1*256*H/8*W/8] => [1*256*H*W]
         // desc 处理， 
         vector<int64_t> desc_test_dim = {1, 256, img_height, img_width}; // [B,256,H/8,W/8]
         torch::Tensor desc_test = torch::randn(desc_test_dim);
