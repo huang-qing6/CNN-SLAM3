@@ -1,6 +1,6 @@
 # Mars-drone-SLAM-algorithm-zynqMPSOC-accelerator
 ## CNN-SLAM3,源码来自ORB-SLAM3源码修改
-### 环境
+### 版本、编译
 zynqMP AX15UEG 开发板(armv8)  
 aarch64-linux-gnu-gcc: v9.2.0  
 Ptorch: v1.12.0  
