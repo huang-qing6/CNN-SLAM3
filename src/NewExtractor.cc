@@ -255,7 +255,7 @@ namespace ORB_SLAM3{
         std::vector<cv::KeyPoint> keypoints;
         cv::Mat descriptors;        
         cv::Mat pts_mat(cv::Size(3, keypoint_res.size(0)), CV_32FC1, keypoint_res.data<float>());
-        cv::Mat desc_mat(cv::Size(32, keypoint_res.size(0)), CV_8UC1, desc_res.data<unsigned char>());
+        cv::Mat desc_mat(cv::Size(32, keypoint_res.size(0)), CV_8UC1, desc_res.data<char>());
 
         // 非最大值抑制
         CNN_nms(pts_mat, desc_mat, keypoints, descriptors, border, dist_thresh, img_width, img_height, ratio_width, ratio_height);    
