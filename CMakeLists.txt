@@ -1,15 +1,14 @@
 cmake_minimum_required(VERSION 3.5.0)
 project(cnn-slam3 VERSION 0.1.0 LANGUAGES C CXX)
 ##----------------add settings-------------------##
-set(CMAKE_BUILD_TYPE Realse) #Debug
+set(CMAKE_BUILD_TYPE "Debug") #Realse
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -O3 -ggdb -fPIC -rdynamic") # 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -O3 -ggdb -fPIC -rdynamic") # 
 set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} ")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} ")
 
 include(CheckCXXCompilerFlag)
-CHECK_CXX_COMPILER_FLAG("-std=c++17" COMPILER_SUPPORTS_CXX14)
-
+CHECK_CXX_COMPILER_FLAG("-std=c++14" COMPILER_SUPPORTS_CXX14)
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_C_STANDARD 11)
@@ -83,6 +82,7 @@ ${Boost_LIBRARIES}
 ${PROJECT_SOURCE_DIR}/Thirdparty/openssl/lib64/libcrypto.so
 )
 
+# link pytorch
 target_link_libraries(${PROJECT_NAME}
 ${PROJECT_SOURCE_DIR}/Thirdparty/pytorch/lib/libc10.so
 ${PROJECT_SOURCE_DIR}/Thirdparty/pytorch/lib/libtorch_cpu.so
@@ -91,11 +91,11 @@ ${TORCH_LIBS}
 )
 
 #------Build Examples-----#
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/Examples/Cam_test)
-add_executable(Mono Examples/Cam_test/src/mono.cc)
-target_link_libraries(Mono ${PROJECT_NAME})
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/CNN_Module)
+add_executable(mono_cam Examples/Cam_test/src/mono.cc)
+target_link_libraries(mono_cam ${PROJECT_NAME})
 
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/Examples/Monocular)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/CNN_Module)
 add_executable(mono_euroc Examples/Monocular/mono_euroc.cc)
 set_target_properties(mono_euroc PROPERTIES CXX_STANDARD 14 CXX_STANDARD_REQUIRED ON)
 target_link_libraries(mono_euroc ${PROJECT_NAME} ${OpenCV_LIBS})

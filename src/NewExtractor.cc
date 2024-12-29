@@ -7,6 +7,8 @@
 
 #include "NewExtractor.h"
 
+#include <chrono>
+
 using namespace cv;
 using namespace std;
 namespace F = torch::nn::functional;
@@ -24,14 +26,15 @@ namespace ORB_SLAM3{
      * Output:
      *  处理后的keypoint [B, 1, img_height, img_width]
      */
-    torch::Tensor CNN_shuffle(torch::Tensor &tensor, const int64_t& scale_factor){
+    torch::Tensor CNN_shuffle(torch::Tensor &tensor){
+        const int64_t scale_factor = 8;
         int64_t num, ch, height, width;
         num = tensor.size(0);
         ch = tensor.size(1);
         height = tensor.size(2);
         width = tensor.size(3);
 
-        // assert ch % (scale_factor * scale_factor) == 0? 64/(8*8)确实等于0
+        // assert ch % (scale_factor * scale_factor) == 1? 64/(8*8)确实等于1
         tensor = tensor.reshape({num, ch / (scale_factor * scale_factor), scale_factor, scale_factor, height, width});
         tensor = tensor.permute({0, 1, 4, 2, 5, 3});
         tensor = tensor.reshape({num, ch / (scale_factor * scale_factor), scale_factor * height, scale_factor * width});
@@ -180,10 +183,15 @@ namespace ORB_SLAM3{
             ++v0;
         }
 
-        // 初始化CNN，禁用
-        // const char *net_fn = getenv("CNN_PATH");
-        // net_fn = (net_fn == nullptr) ? "cnn.onnx" : net_fn; 
-        // module = /*make_shared<torch::jit::Module>*/torch::jit::load(net_fn);
+        // 初始化CNN，指定路径可以更灵活
+        /*const char *net_fn = getenv("CNN_PATH");
+        net_fn = (net_fn == nullptr) ? "Netsuper_ptq.pt" : net_fn; 
+        module = torch::jit::load(net_fn);*/
+        try { 
+            module = torch::jit::load("./Netsuper_ptq.pt"); 
+        } catch (const c10::Error& e) { 
+            std::cerr << "Error loading the model.\n"; 
+        }
     }
 
     int CNNextractor::operator()( InputArray _image, InputArray _mask, vector<KeyPoint>& _keypoints,
@@ -209,42 +217,45 @@ namespace ORB_SLAM3{
         
         cv::resize(img, img, cv::Size(img_width, img_height));
 
+    // test用，操作模型
+    std::vector<int64_t> dims = {1, img_height, img_width, 1}; // 根据实际输入形状调整 
+    auto img_var = torch::from_blob(img.data, dims, torch::kFloat32); // 将输入数据移动到 CUDA 设备 
+    img_var = img_var.to(torch::kCPU); // 调整输入的维度顺序（NCHW -> NHWC） 
+    img_var = img_var.permute({0, 3, 1, 2}); // 转置
+    std::vector<torch::jit::IValue> inputs; 
+
+    inputs.push_back(img_var); // 执行推理
+    auto output = module.forward(inputs).toTuple(); // 导入模型，进行推理 fp32用
+    // auto output = module.quantize_inference(inputs).toTuple();
+    std::cout << "cal finish!" << std::endl;
+
+    // 保存结果
+    auto keypoint_raw  = output->elements()[0].toTensor().to(torch::kCPU);
+    auto desc_raw = output->elements()[1].toTensor().to(torch::kCPU);
+
     // 1.图像传至PL
         
+    // 2.从PL获取特征点和描述子的raw_data    
 
-    // 2.从PL获取特征点和描述子的raw_data
-        
-
-    // 3.处理raw_keypoint 现在假设输出的是keypoints_test //[1*65*H/8*W/8] => [1*1*H*W] //默认H=240 W=360
-        vector<double> grid_size {8};
-        int64_t scale_factor;
-
-        vector<int64_t> keypoint_test_dim = {65, 64, img_height, img_width};
-        torch::Tensor keypoint_test = torch::randn(keypoint_test_dim);    
-
-        // 参考 auto pts  = output->elements()[0].toTensor().to(torch::kCPU).squeeze();    
-        auto keypoint = torch::softmax(keypoint_test,1); // softmax,[B, 65, H/8, W/8]
-        // 还差一个65通道减少为64的操作 [B, 64, H/8, W/8]
-        // TODO
-
-        // torch::reshape // sp里有实现 pixel_shuffle
-        keypoint = CNN_shuffle(keypoint, scale_factor); // [B, 1, H, W]
-        auto keypoint_res = keypoint.squeeze(1); //不确定squeeze这样不指定就行，最后压缩至[B, W, H]
+    // 3.处理raw_keypoint 现在假设输出的是keypoints_test //[1*65*H/8*W/8] => [1*1*H*W]
+        keypoint_raw = torch::softmax(keypoint_raw,1); // softmax,[1, 65, H/8, W/8]
+        // 还差一个65通道减少为64的操作 [1, 64, H/8, W/8]
+        keypoint_raw = torch::slice(keypoint_raw,1,0,64);
+        // torch::reshape,sp里有实现 pixel_shuffle
+        keypoint_raw = CNN_shuffle(keypoint_raw); // [1, 1, H, W]
+        auto keypoint_res = keypoint_raw.squeeze(1); //不确定squeeze这样不指定就行，最后压缩至[B, W, H]
 
     // 4.处理raw_desc 现在假设输出的是desc_test [1*256*H/8*W/8] => [1*256*H*W]
-        // desc 处理， 
-        vector<int64_t> desc_test_dim = {1, 256, img_height, img_width}; // [B,256,H/8,W/8]
-        torch::Tensor desc_test = torch::randn(desc_test_dim);
-
-        desc_test = F::interpolate(desc_test, 
+        vector<double> grid_size {8, 8}; // 上采样高，宽
+        desc_raw = F::interpolate(desc_raw, 
         F::InterpolateFuncOptions().mode(torch::kBilinear).align_corners(false).scale_factor(grid_size));
-        auto desc = F::normalize(desc_test, F::NormalizeFuncOptions().p(2).dim(1));
+        auto desc_res = F::normalize(desc_raw, F::NormalizeFuncOptions().p(2).dim(1));
 
     // 5.保存结果
         std::vector<cv::KeyPoint> keypoints;
         cv::Mat descriptors;        
-        cv::Mat pts_mat(cv::Size(3, keypoint_res.size(0)), CV_32FC1, keypoint.data<float>());
-        cv::Mat desc_mat(cv::Size(32, keypoint_res.size(0)), CV_8UC1, desc.data<unsigned char>());
+        cv::Mat pts_mat(cv::Size(3, keypoint_res.size(0)), CV_32FC1, keypoint_res.data<float>());
+        cv::Mat desc_mat(cv::Size(32, keypoint_res.size(0)), CV_8UC1, desc_res.data<unsigned char>());
 
         // 非最大值抑制
         CNN_nms(pts_mat, desc_mat, keypoints, descriptors, border, dist_thresh, img_width, img_height, ratio_width, ratio_height);    
@@ -304,9 +315,5 @@ namespace ORB_SLAM3{
         int monoIndex = 0;
         return monoIndex;
     }
-<<<<<<< HEAD
 } // namespace CNN_SLAM3(OG:ORB_SLAM3)
 
-=======
-} // namespace CNN_SLAM3(OG:ORB_SLAM3)
->>>>>>> parent of 0f353e62... Update NewExtractor.cc
