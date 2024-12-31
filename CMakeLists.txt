@@ -14,7 +14,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_C_STANDARD 11)
 
 LIST(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake_modules)
-
 ##--------------------link-library---------------------##
 # opencv
 #set(OpenCV_DIR  Thirdparty/opencv/lib/cmake/opencv4) 
@@ -82,7 +81,7 @@ ${Boost_LIBRARIES}
 ${PROJECT_SOURCE_DIR}/Thirdparty/openssl/lib64/libcrypto.so
 )
 
-# link pytorch
+# link libtorch
 target_link_libraries(${PROJECT_NAME}
 ${PROJECT_SOURCE_DIR}/Thirdparty/pytorch/lib/libc10.so
 ${PROJECT_SOURCE_DIR}/Thirdparty/pytorch/lib/libtorch_cpu.so
@@ -97,5 +96,4 @@ target_link_libraries(mono_cam ${PROJECT_NAME})
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/CNN_Module)
 add_executable(mono_euroc Examples/Monocular/mono_euroc.cc)
-set_target_properties(mono_euroc PROPERTIES CXX_STANDARD 14 CXX_STANDARD_REQUIRED ON)
 target_link_libraries(mono_euroc ${PROJECT_NAME} ${OpenCV_LIBS})

@@ -21,10 +21,9 @@ namespace ORB_SLAM3{
 
     /**原superpoint的shuffle
      * Input:
-     *  keypoint: 特征点,大小为[B, 64, img_height/8, img_width/8]
-     *  grid_size: 大小为8,与原版不同
+     *  keypoint: 特征点,大小为[1, 64, img_height/8, img_width/8]
      * Output:
-     *  处理后的keypoint [B, 1, img_height, img_width]
+     *  处理后的keypoint [1, 1, img_height, img_width]
      */
     torch::Tensor CNN_shuffle(torch::Tensor &tensor){
         const int64_t scale_factor = 8;
@@ -42,16 +41,25 @@ namespace ORB_SLAM3{
         return tensor;
     }
 
-    // 非极大值抑制
+    /**非极大值抑制
+     * Input:
+     *  det: 处理后的keypoint_raw
+     *  desc: 处理后的desc_raw
+     *  pts: keypoint结果储存的空数组
+     *  descriptors: desc结果储存的空数组
+     *  border: 未知参数
+     *  dist_thresh: 未知参数
+     *  img_width: 360
+     *  img_height: 240
+     *  ratio_* : 原图与目前高宽的转换比例
+     */ 
     void CNN_nms(cv::Mat det, cv::Mat desc, std::vector<cv::KeyPoint>& pts, cv::Mat& descriptors,
         int border, int dist_thresh, int img_width, int img_height, float ratio_width, float ratio_height){
         std::vector<cv::Point2f> pts_raw;
 
         for (int i = 0; i < det.rows; i++){
-
             int u = (int) det.at<float>(i, 0);
             int v = (int) det.at<float>(i, 1);
-
             pts_raw.push_back(cv::Point2f(u, v));
         }
 
@@ -100,8 +108,9 @@ namespace ORB_SLAM3{
                 if (u -dist_thresh>= (img_width - border) || u-dist_thresh < border || v-dist_thresh >= (img_height - border) || v-dist_thresh < border)
                 continue;
 
-                if (grid.at<char>(v,u) == 2)
+                if (grid.at<char>(v,u) == 1) // 2
                 {
+                    cout << "slect a keypoint" << endl;
                     int select_ind = (int) inds.at<unsigned short>(v-dist_thresh, u-dist_thresh);
                     pts.push_back(cv::KeyPoint(pts_raw[select_ind].x * ratio_width, pts_raw[select_ind].y * ratio_height, 1.0f));
 
@@ -200,21 +209,16 @@ namespace ORB_SLAM3{
         if(_image.empty())
             return -1;
 
-        Mat image = _image.getMat();
-        assert(image.type() == CV_8UC1);
-
-        Mat img;
-        // 为什么要转大小？
-        image.convertTo(img, CV_32FC1, 1.f / 255.f , 0);
-        // 大小360*240， border和dist设置不确定
+        // 转换输入模型的图像大小360*240
         int img_width = 360;
         int img_height = 240;
-        int border = 8;
-        int dist_thresh = 4;        
-
+        Mat image = _image.getMat();
+        assert(image.type() == CV_8UC1);
+        Mat img;
+        image.convertTo(img, CV_32FC1, 1.f/*/ 255.f*/, 0);
+        // 记录尺度转换比例
         float ratio_width = float(img.cols) / float(img_width);
         float ratio_height = float(img.rows) / float(img_height);
-        
         cv::resize(img, img, cv::Size(img_width, img_height));
 
     // test用，操作模型
@@ -227,7 +231,6 @@ namespace ORB_SLAM3{
     inputs.push_back(img_var); // 执行推理
     auto output = module.forward(inputs).toTuple(); // 导入模型，进行推理 fp32用
     // auto output = module.quantize_inference(inputs).toTuple();
-    std::cout << "cal finish!" << std::endl;
 
     // 保存结果
     auto keypoint_raw  = output->elements()[0].toTensor().to(torch::kCPU);
@@ -243,29 +246,42 @@ namespace ORB_SLAM3{
         keypoint_raw = torch::slice(keypoint_raw,1,0,64);
         // torch::reshape,sp里有实现 pixel_shuffle
         keypoint_raw = CNN_shuffle(keypoint_raw); // [1, 1, H, W]
-        auto keypoint_res = keypoint_raw.squeeze(1); //不确定squeeze这样不指定就行，最后压缩至[B, W, H]
 
     // 4.处理raw_desc 现在假设输出的是desc_test [1*256*H/8*W/8] => [1*256*H*W]
-        vector<double> grid_size {8, 8}; // 上采样高，宽
+        vector<double> grid_size {8, 8}; // 上采样高,宽 [1*256*H/8*W/8]
         desc_raw = F::interpolate(desc_raw, 
         F::InterpolateFuncOptions().mode(torch::kBilinear).align_corners(false).scale_factor(grid_size));
-        auto desc_res = F::normalize(desc_raw, F::NormalizeFuncOptions().p(2).dim(1));
+        desc_raw = F::normalize(desc_raw, F::NormalizeFuncOptions().p(2).dim(1));
 
-    // 5.保存结果
-        std::vector<cv::KeyPoint> keypoints;
-        cv::Mat descriptors;        
+    // 5.保存结果 
+        auto keypoint_res = keypoint_raw.squeeze(); // [1, 1, H, W] >> [H * W]
+        auto desc_res = desc_raw.squeeze(); // [1*256*H*W] >> [256 * H * W]
+
+        // CV_位数 类型(F C) 通道数，如CV_32FC1
         cv::Mat pts_mat(cv::Size(3, keypoint_res.size(0)), CV_32FC1, keypoint_res.data<float>());
-        cv::Mat desc_mat(cv::Size(32, keypoint_res.size(0)), CV_8UC1, desc_res.data<char>());
+        cv::Size size = pts_mat.size();
+        cout << pts_mat.rows << " " << pts_mat.cols << " " << pts_mat.channels() << endl;
 
+        cv::Mat desc_mat(cv::Size(32, keypoint_res.size(0)), CV_32FC1, desc_res.data<float>()); //CV_8UC1 CV_32FC1
+        cout << desc_mat.rows << " " << desc_mat.cols << " " << desc_mat.channels() << endl;
+ 
         // 非最大值抑制
+        int border = 8;
+        int dist_thresh = 4;  
+        std::vector<cv::KeyPoint> keypoints;
+        cv::Mat descriptors;   
         CNN_nms(pts_mat, desc_mat, keypoints, descriptors, border, dist_thresh, img_width, img_height, ratio_width, ratio_height);    
 
-        _keypoints.insert(_keypoints.end(), keypoints.begin(), keypoints.end());        
+        _keypoints.insert(_keypoints.end(), keypoints.begin(), keypoints.end());      
         int nkeypoints = keypoints.size();
-        _descriptors.create(nkeypoints, 32, CV_8U);
+        cout << nkeypoints << endl;
+        _descriptors.create(nkeypoints, 32, CV_32FC1); //CV_8U
+        size = _descriptors.size();
+        size = descriptors.size();
         descriptors.copyTo(_descriptors.getMat());
+        cout << "code 3" << endl;
         _keypoints = vector<cv::KeyPoint>(nkeypoints);  
-
+        
         /*int offset = 0;
         //Modified for speeding up stereo fisheye matching
         int monoIndex = 0, stereoIndex = nkeypoints-1;
