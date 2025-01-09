@@ -58,7 +58,7 @@ namespace ORB_SLAM3{
             for(int j = 0; j < size.height; j++){
                 w = i;
                 h = j;
-                pts_raw.push_back(cv::Point2f(h, w));
+                pts_raw.push_back(cv::Point2f(h, w)); // 这里有问题,交换w h只影响特征点数量，不会超出大小？
             }
         }
 
@@ -280,13 +280,12 @@ namespace ORB_SLAM3{
 
         _keypoints.insert(_keypoints.end(), keypoints.begin(), keypoints.end());      
         int nkeypoints = keypoints.size();
-        // cout << nkeypoints << endl; 目前需要考虑再约束一下特征点个数？
+        // cout << nkeypoints << endl; 目前需要考虑再约束一下特征点个数? 目前输出3105个
         _descriptors.create(nkeypoints, 256, CV_32F); //CV_8U
-        size = _descriptors.size();
-        size = descriptors.size();
         descriptors.copyTo(_descriptors.getMat());
-        _keypoints = vector<cv::KeyPoint>(nkeypoints);  
-        cout << "Frame extrator finished!" << endl;
+        //_keypoints = vector<cv::KeyPoint>(nkeypoints);  
+
+        // cout << "Frame extrator finished! size: " << nkeypoints << endl;
 
         /*int offset = 0;
         //Modified for speeding up stereo fisheye matching
@@ -334,7 +333,7 @@ namespace ORB_SLAM3{
             }
         }*/
         // 暂时没想好这里怎么改
-        int monoIndex = 0;
+        int monoIndex = 1;
         return monoIndex;
     }
 } // namespace CNN_SLAM3(OG:ORB_SLAM3)
