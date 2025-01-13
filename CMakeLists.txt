@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.5.0)
 project(cnn-slam3 VERSION 0.1.0 LANGUAGES C CXX)
 ##----------------add settings-------------------##
-set(CMAKE_BUILD_TYPE "Debug") #Realse
+set(CMAKE_BUILD_TYPE "Realse") #Debug
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -O3 -ggdb -fPIC -rdynamic") # 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -O3 -ggdb -fPIC -rdynamic") # 
 set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} ")
@@ -17,7 +17,7 @@ LIST(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake_modules)
 ##--------------------link-library---------------------##
 # opencv
 #set(OpenCV_DIR  Thirdparty/opencv/lib/cmake/opencv4) 
-set(OpenCV_DIR  Thirdparty/opencv/share/OpenCV) 
+#set(OpenCV_DIR  Thirdparty/opencv/share/OpenCV) 
 find_package(OpenCV REQUIRED)
 include_directories(${OpenCV_INCLUDE_DIRS})
 # Eigen
