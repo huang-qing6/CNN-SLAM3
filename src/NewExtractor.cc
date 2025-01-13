@@ -320,7 +320,7 @@ namespace ORB_SLAM3{
         }
 
         // cout << "keypoint size: " << _keypoints.size() << endl;
-        cout << "monoIndex: " << monoIndex << " " << "setreoIndex: " << stereoIndex << endl;
+        // cout << "monoIndex: " << monoIndex << " " << "setreoIndex: " << stereoIndex << endl;
         return monoIndex;
     }
 } // namespace CNN_SLAM3(OG:ORB_SLAM3)

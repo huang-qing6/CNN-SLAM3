@@ -97,3 +97,7 @@ target_link_libraries(mono_cam ${PROJECT_NAME})
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/CNN_Module)
 add_executable(mono_euroc Examples/Monocular/mono_euroc.cc)
 target_link_libraries(mono_euroc ${PROJECT_NAME} ${OpenCV_LIBS})
+
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/CNN_Module)
+add_executable(rgbd Examples/RGB-D/rgbd_tum.cc)
+target_link_libraries(rgbd ${PROJECT_NAME} ${OpenCV_LIBS})

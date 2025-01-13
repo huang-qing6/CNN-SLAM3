@@ -2070,7 +2070,6 @@ namespace ORB_SLAM3
         }
     }
 
-
 // Bit set count operation from
 // http://graphics.stanford.edu/~seander/bithacks.html#CountBitsSetParallel
     /*int ORBmatcher::DescriptorDistance(const cv::Mat &a, const cv::Mat &b)
@@ -2094,7 +2093,6 @@ namespace ORB_SLAM3
     float ORBmatcher::DescriptorDistance(const cv::Mat &a, const cv::Mat &b)
     {
         float dist = (float)cv::norm(a, b, cv::NORM_L2);
-
         return dist;
     }
 

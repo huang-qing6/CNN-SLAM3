@@ -29,7 +29,7 @@ int main(int argc, char **argv)
 {
     if(argc != 3)
     {
-        cerr << endl << "Usage:Mono path_to_vocabulary path_to_settings" << endl;        
+        cerr << endl << "Usage:./Mono path_to_vocabulary path_to_settings" << endl;        
         return 1;
     }    
 
