@@ -74,6 +74,8 @@ protected:
     std::vector<float> mvInvScaleFactor;    
     std::vector<float> mvLevelSigma2;
     std::vector<float> mvInvLevelSigma2;
+
+    torch::jit::script::Module module;
 };
 
 } // namespace CNN_SLAM3(OG:ORB_SLAM3)
