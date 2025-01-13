@@ -50,7 +50,6 @@ Frame::Frame(): mpcpi(NULL), mpImuPreintegrated(NULL), mpPrevFrame(NULL), mpImuP
 #endif
 }
 
-
 //Copy Constructor
 Frame::Frame(const Frame &frame)
     :mpcpi(frame.mpcpi),mpORBvocabulary(frame.mpORBvocabulary), mpORBextractorLeft(frame.mpORBextractorLeft), mpORBextractorRight(frame.mpORBextractorRight),
@@ -96,7 +95,6 @@ Frame::Frame(const Frame &frame)
     mTimeORB_Ext = frame.mTimeORB_Ext;
 #endif
 }
-
 
 Frame::Frame(const cv::Mat &imLeft, const cv::Mat &imRight, const double &timeStamp, CNNextractor* extractorLeft, CNNextractor* extractorRight, ORBVocabulary* voc, cv::Mat &K, cv::Mat &distCoef, const float &bf, const float &thDepth, GeometricCamera* pCamera, Frame* pPrevF, const IMU::Calib &ImuCalib)
     :mpcpi(NULL), mpORBvocabulary(voc),mpORBextractorLeft(extractorLeft),mpORBextractorRight(extractorRight), mTimeStamp(timeStamp), mK(K.clone()), mK_(Converter::toMatrix3f(K)), mDistCoef(distCoef.clone()), mbf(bf), mThDepth(thDepth),
@@ -285,7 +283,6 @@ Frame::Frame(const cv::Mat &imGray, const cv::Mat &imDepth, const double &timeSt
     AssignFeaturesToGrid();
 }
 
-
 Frame::Frame(const cv::Mat &imGray, const double &timeStamp, CNNextractor* extractor,ORBVocabulary* voc, GeometricCamera* pCamera, cv::Mat &distCoef, const float &bf, const float &thDepth, Frame* pPrevF, const IMU::Calib &ImuCalib)
     :mpcpi(NULL),mpORBvocabulary(voc),mpORBextractorLeft(extractor),mpORBextractorRight(static_cast<CNNextractor*>(NULL)),
      mTimeStamp(timeStamp), mK(static_cast<Pinhole*>(pCamera)->toK()), mK_(static_cast<Pinhole*>(pCamera)->toK_()), mDistCoef(distCoef.clone()), mbf(bf), mThDepth(thDepth),
@@ -381,7 +378,6 @@ Frame::Frame(const cv::Mat &imGray, const double &timeStamp, CNNextractor* extra
     mpMutexImu = new std::mutex();
 }
 
-
 void Frame::AssignFeaturesToGrid()
 {
     // Fill matrix with points
@@ -415,14 +411,14 @@ void Frame::AssignFeaturesToGrid()
     }
 }
 
-
-//唯一使用重载符的地方 mono( left / right ),vLapping 只对setero/mono模式有影响
+//指定 extractor 入口 mono( left / right ),vLapping 只对setero/mono模式有影响
 void Frame::ExtractORB(int flag, const cv::Mat &im, const int x0, const int x1)
 {
     vector<int> vLapping = {x0,x1};
-    if(flag==0)
+    if(flag==0){
         monoLeft = (*mpORBextractorLeft)(im,cv::Mat(),mvKeys,mDescriptors,vLapping);
-    else
+        cout << "desc size: " << mDescriptors.rows << ' ' << mDescriptors.cols << endl;
+    }else
         monoRight = (*mpORBextractorRight)(im,cv::Mat(),mvKeysRight,mDescriptorsRight,vLapping);
 }
 
@@ -509,7 +505,6 @@ Eigen::Matrix3f Frame::GetRelativePoseTlr_rotation(){
 Eigen::Vector3f Frame::GetRelativePoseTlr_translation() {
     return mTlr.translation();
 }
-
 
 bool Frame::isInFrustum(MapPoint *pMP, float viewingCosLimit)
 {
@@ -736,7 +731,6 @@ bool Frame::PosInGrid(const cv::KeyPoint &kp, int &posX, int &posY)
     return true;
 }
 
-
 void Frame::ComputeBoW()
 {
     if(mBowVec.empty())
@@ -815,7 +809,8 @@ void Frame::ComputeStereoMatches()
     mvuRight = vector<float>(N,-1.0f);
     mvDepth = vector<float>(N,-1.0f);
 
-    const int thOrbDist = (ORBmatcher::TH_HIGH+ORBmatcher::TH_LOW)/2;
+    // const int thOrbDist = (ORBmatcher::TH_HIGH+ORBmatcher::TH_LOW)/2;
+    const float thOrbDist = (ORBmatcher::TH_HIGH+ORBmatcher::TH_LOW)/2;
 
     const int nRows = mpORBextractorLeft->mvImagePyramid[0].rows;
 
@@ -866,7 +861,8 @@ void Frame::ComputeStereoMatches()
         if(maxU<0)
             continue;
 
-        int bestDist = ORBmatcher::TH_HIGH;
+        // int bestDist = ORBmatcher::TH_HIGH;
+        float bestDist = ORBmatcher::TH_HIGH;
         size_t bestIdxR = 0;
 
         const cv::Mat &dL = mDescriptors.row(iL);
@@ -885,7 +881,8 @@ void Frame::ComputeStereoMatches()
             if(uR>=minU && uR<=maxU)
             {
                 const cv::Mat &dR = mDescriptorsRight.row(iR);
-                const int dist = ORBmatcher::DescriptorDistance(dL,dR);
+                // const int dist = ORBmatcher::DescriptorDistance(dL,dR);
+                const float dist = ORBmatcher::DescriptorDistance(dL,dR);
 
                 if(dist<bestDist)
                 {
@@ -909,7 +906,8 @@ void Frame::ComputeStereoMatches()
             const int w = 5;
             cv::Mat IL = mpORBextractorLeft->mvImagePyramid[kpL.octave].rowRange(scaledvL-w,scaledvL+w+1).colRange(scaleduL-w,scaleduL+w+1);
 
-            int bestDist = INT_MAX;
+            // int bestDist = INT_MAX;
+            float bestDist = INT_MAX;
             int bestincR = 0;
             const int L = 5;
             vector<float> vDists;
@@ -981,7 +979,6 @@ void Frame::ComputeStereoMatches()
         }
     }
 }
-
 
 void Frame::ComputeStereoFromRGBD(const cv::Mat &imDepth)
 {

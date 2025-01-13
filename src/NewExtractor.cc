@@ -245,14 +245,11 @@ namespace ORB_SLAM3{
         // torch::reshape,sp里有实现 pixel_shuffle
         keypoint_prob = CNN_shuffle(keypoint_prob); // [1 1 H W]
         keypoint_prob = keypoint_prob.squeeze(); // [H W]
-        int threshold = 0.001; // 概率阈值 0.001 or 0.015
+        int threshold = 0.015; // 概率阈值 0.001 or 0.015
         auto kpts = (keypoint_prob > threshold);
         kpts = torch::nonzero(kpts);  // [nkeypoints 2]  (y, x)
 
     // 4.处理raw_desc 现在假设输出的是desc_test [1*256*H/8*W/8] => [1*256*H*W]
-        /*vector<double> grid_size {8, 8}; // 上采样高,宽 [1*256*H/8*W/8]
-        desc_raw = F::interpolate(desc_raw, 
-        F::InterpolateFuncOptions().mode(torch::kBilinear).align_corners(false).scale_factor(grid_size));*/
         // 新上采样，等同interpolate
         auto fkpts = kpts.to(torch::kFloat);
         auto grid = torch::zeros({1, 1, kpts.size(0), 2}).to(device);  // [1 1 nkeypoints 2]
@@ -281,69 +278,50 @@ namespace ORB_SLAM3{
         // 5.3 非最大值抑制处理
         std::vector<cv::KeyPoint> keypoints;
         cv::Mat descriptors;  
+        cv::Mat desc;
         cv::Mat conf(keypoints_no_nms.size(), 1, CV_32F); // prob
-        CNN_nms(keypoints_no_nms, conf, desc_no_nms, keypoints, descriptors, 8, 4, img_height, img_width, ratio_width, ratio_height);
+        CNN_nms(keypoints_no_nms, conf, desc_no_nms, keypoints, desc, 8, 4, img_height, img_width, ratio_width, ratio_height);
         
         // 5.4 保存最终结果
         int nkeypoints = keypoints.size();
-        cout << "finsih nms, npts:" << nkeypoints << endl;
+        // cout << "finsih nms, npts:" << nkeypoints << endl;
         if(nkeypoints == 0)
             _descriptors.release();
         else{
             _descriptors.create(nkeypoints, 256, CV_32F);
-            descriptors.copyTo(_descriptors.getMat());            
+            // descriptors.copyTo(_descriptors.getMat());            
+            descriptors = _descriptors.getMat(); // 公用一块内存
         }
-        _keypoints.insert(_keypoints.end(), keypoints.begin(), keypoints.end());  
 
-        /* 暂不考虑修改
+        // _keypoints.clear();
+        _keypoints = vector<cv::KeyPoint>(nkeypoints);
+        // _keypoints.insert(_keypoints.end(), keypoints.begin(), keypoints.end());  
+
         int offset = 0;
         //Modified for speeding up stereo fisheye matching
         int monoIndex = 0, stereoIndex = nkeypoints-1;
-        for (int level = 0; level < nlevels; ++level)
-        {
-            vector<KeyPoint>& keypoints = allKeypoints[level];
-            int nkeypointsLevel = (int)keypoints.size();
+        int i = 0;
+        for (vector<KeyPoint>::iterator keypoint = keypoints.begin(),
+                        keypointEnd = keypoints.end(); keypoint != keypointEnd; ++keypoint){
 
-            if(nkeypointsLevel==0)
-                continue;
-
-            // preprocess the resized image
-            Mat workingMat = mvImagePyramid[level].clone();
-            GaussianBlur(workingMat, workingMat, Size(7, 7), 2, 2, BORDER_REFLECT_101);
-
-            // Compute the descriptors
-            //Mat desc = descriptors.rowRange(offset, offset + nkeypointsLevel);
-            Mat desc = cv::Mat(nkeypointsLevel, 32, CV_8U);
-            computeDescriptors(workingMat, keypoints, desc, pattern);
-
-            offset += nkeypointsLevel;
-
-            float scale = mvScaleFactor[level]; //getScale(level, firstLevel, scaleFactor);
-            int i = 0;
-            for (vector<KeyPoint>::iterator keypoint = keypoints.begin(),
-                         keypointEnd = keypoints.end(); keypoint != keypointEnd; ++keypoint){
-
-                // Scale keypoint coordinates
-                if (level != 0){
-                    keypoint->pt *= scale;
-                }
-
-                if(keypoint->pt.x >= vLappingArea[0] && keypoint->pt.x <= vLappingArea[1]){
-                    _keypoints.at(stereoIndex) = (*keypoint);
-                    desc.row(i).copyTo(descriptors.row(stereoIndex));
-                    stereoIndex--;
-                }
-                else{
-                    _keypoints.at(monoIndex) = (*keypoint);
-                    desc.row(i).copyTo(descriptors.row(monoIndex));
-                    monoIndex++;
-                }
-                i++;
+            if(keypoint->pt.x >= vLappingArea[0] && keypoint->pt.x <= vLappingArea[1]){
+                _keypoints.at(stereoIndex) = (*keypoint);
+                desc.row(i).copyTo(descriptors.row(stereoIndex));
+                stereoIndex--;
+                // cout << "in stero" << endl;
             }
-        }*/
+            else{
+                _keypoints.at(monoIndex) = (*keypoint);
+                desc.row(i).copyTo(descriptors.row(monoIndex));
+                monoIndex++;
+                // cout << "in mono" << endl;
+            }
+            i++;
+        }
 
-        // return monoIndex;
-        return 1;
+        // cout << "keypoint size: " << _keypoints.size() << endl;
+        cout << "monoIndex: " << monoIndex << " " << "setreoIndex: " << stereoIndex << endl;
+        return monoIndex;
     }
 } // namespace CNN_SLAM3(OG:ORB_SLAM3)
 
