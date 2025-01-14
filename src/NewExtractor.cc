@@ -97,6 +97,7 @@ namespace ORB_SLAM3{
 
         size_t valid_cnt = 0;
         std::vector<int> select_indice;
+
         for (int v = 0; v < (img_height + dist_thresh); v++){
             for (int u = 0; u < (img_width + dist_thresh); u++)
             {
@@ -120,7 +121,7 @@ namespace ORB_SLAM3{
         {
             for (int j=0; j<256; j++)
             {
-                // 保存的特征点对应的描述子信息，两个向量位置一致
+                // 保存的特征点对应的描述子信息
                 descriptors.at<unsigned char>(i, j) = desc.at<unsigned char>(select_indice[i], j);
             }
         }       
@@ -165,10 +166,6 @@ namespace ORB_SLAM3{
         }
         mnFeaturesPerLevel[nlevels-1] = std::max(nfeatures - sumFeatures, 0);
 
-        /*const int npoints = 512;
-        const Point* pattern0 = (const Point*)bit_pattern_31_;
-        std::copy(pattern0, pattern0 + npoints, std::back_inserter(pattern));*/
-
         //This is for orientation
         // pre-compute the end of a row in a circular patch
         umax.resize(HALF_PATCH_SIZE + 1);
@@ -189,9 +186,6 @@ namespace ORB_SLAM3{
         }
 
         // 初始化CNN，指定路径可以更灵活
-        /*const char *net_fn = getenv("CNN_PATH");
-        net_fn = (net_fn == nullptr) ? "Netsuper_ptq.pt" : net_fn; 
-        module = torch::jit::load(net_fn);*/
         try { 
             module = torch::jit::load("./Netsuper_ptq.pt"); 
         } catch (const c10::Error& e) { 
@@ -238,18 +232,19 @@ namespace ORB_SLAM3{
     auto keypoint_prob  = output->elements()[0].toTensor().to(torch::kCPU);
     auto desc_raw = output->elements()[1].toTensor().to(torch::kCPU);
 
-    // 3.处理raw_keypoint 现在假设输出的是keypoints_test //[1 65 H/8 W/8] => [1 1 H W]
+    // 3.处理raw_keypoint 现在假设输出的是keypoints_test //[1 65 H/8 W/8] => [nkeypoints 2]
         keypoint_prob = torch::softmax(keypoint_prob,1); // softmax,[1 65 H/8 W/8]
-        // 还差一个65通道减少为64的操作 [1, 64, H/8, W/8]
+        // 65通道减少 [1, 64, H/8, W/8]
         keypoint_prob = torch::slice(keypoint_prob,1,0,64);
         // torch::reshape,sp里有实现 pixel_shuffle
         keypoint_prob = CNN_shuffle(keypoint_prob); // [1 1 H W]
         keypoint_prob = keypoint_prob.squeeze(); // [H W]
-        int threshold = 0.015; // 概率阈值 0.001 or 0.015
-        auto kpts = (keypoint_prob > threshold);
+
+        float threshold = 0.01; // 阈值
+        auto kpts = (keypoint_prob > threshold); // [H W]
         kpts = torch::nonzero(kpts);  // [nkeypoints 2]  (y, x)
 
-    // 4.处理raw_desc 现在假设输出的是desc_test [1*256*H/8*W/8] => [1*256*H*W]
+    // 4.处理raw_desc 现在假设输出的是desc_test [1*256*H/8*W/8] => [n_keypoints 256]
         // 新上采样，等同interpolate
         auto fkpts = kpts.to(torch::kFloat);
         auto grid = torch::zeros({1, 1, kpts.size(0), 2}).to(device);  // [1 1 nkeypoints 2]
@@ -284,43 +279,35 @@ namespace ORB_SLAM3{
         
         // 5.4 保存最终结果
         int nkeypoints = keypoints.size();
-        // cout << "finsih nms, npts:" << nkeypoints << endl;
         if(nkeypoints == 0)
             _descriptors.release();
         else{
-            _descriptors.create(nkeypoints, 256, CV_32F);
-            // descriptors.copyTo(_descriptors.getMat());            
+            _descriptors.create(nkeypoints, 256, CV_32F);           
             descriptors = _descriptors.getMat(); // 公用一块内存
         }
 
-        // _keypoints.clear();
+        _keypoints.clear();
         _keypoints = vector<cv::KeyPoint>(nkeypoints);
-        // _keypoints.insert(_keypoints.end(), keypoints.begin(), keypoints.end());  
 
-        int offset = 0;
         //Modified for speeding up stereo fisheye matching
         int monoIndex = 0, stereoIndex = nkeypoints-1;
         int i = 0;
         for (vector<KeyPoint>::iterator keypoint = keypoints.begin(),
                         keypointEnd = keypoints.end(); keypoint != keypointEnd; ++keypoint){
-
             if(keypoint->pt.x >= vLappingArea[0] && keypoint->pt.x <= vLappingArea[1]){
                 _keypoints.at(stereoIndex) = (*keypoint);
                 desc.row(i).copyTo(descriptors.row(stereoIndex));
                 stereoIndex--;
-                // cout << "in stero" << endl;
             }
             else{
                 _keypoints.at(monoIndex) = (*keypoint);
                 desc.row(i).copyTo(descriptors.row(monoIndex));
                 monoIndex++;
-                // cout << "in mono" << endl;
             }
             i++;
         }
 
-        // cout << "keypoint size: " << _keypoints.size() << endl;
-        // cout << "monoIndex: " << monoIndex << " " << "setreoIndex: " << stereoIndex << endl;
+        cout << "keypoint size: " << _keypoints.size() << endl;
         return monoIndex;
     }
 } // namespace CNN_SLAM3(OG:ORB_SLAM3)
