@@ -19,7 +19,7 @@
 
 #include "LocalMapping.h"
 #include "LoopClosing.h"
-#include "ORBmatcher.h"
+#include "CNNmatcher.h"
 #include "Optimizer.h"
 #include "Converter.h"
 #include "GeometricTools.h"

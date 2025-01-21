@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.5.0)
 project(cnn-slam3 VERSION 0.1.0 LANGUAGES C CXX)
 ##----------------add settings-------------------##
-set(CMAKE_BUILD_TYPE "Realse") #Debug
+set(CMAKE_BUILD_TYPE "Debug") #Debug
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -O3 -ggdb -fPIC -rdynamic") # 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -O3 -ggdb -fPIC -rdynamic") # 
 set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} ")
@@ -69,15 +69,15 @@ add_library(${PROJECT_NAME} SHARED ${SRC_LIST})
 # g2o
 add_subdirectory(Thirdparty/g2o)
 
-# DBoW2
-add_subdirectory(Thirdparty/DBoW2)
+# DBoW3
+add_subdirectory(Thirdparty/DBoW3)
 
 target_link_libraries(${PROJECT_NAME}
 ${OpenCV_LIBS}
 ${EIGEN3_LIBS}
-${PROJECT_SOURCE_DIR}/Thirdparty/g2o/lib/libg2o.so
-${PROJECT_SOURCE_DIR}/Thirdparty/DBoW2/lib/libDBoW2.so
 ${Boost_LIBRARIES}
+${PROJECT_SOURCE_DIR}/Thirdparty/g2o/lib/libg2o.so
+${PROJECT_SOURCE_DIR}/Thirdparty/DBoW3/lib/libDBoW3.so
 ${PROJECT_SOURCE_DIR}/Thirdparty/openssl/lib64/libcrypto.so
 )
 

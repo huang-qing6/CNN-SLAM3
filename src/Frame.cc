@@ -21,9 +21,9 @@
 #include "G2oTypes.h"
 #include "MapPoint.h"
 #include "KeyFrame.h"
-#include "NewExtractor.h"
+#include "CNNextractor.h"
 #include "Converter.h"
-#include "ORBmatcher.h"
+#include "CNNmatcher.h"
 #include "GeometricCamera.h"
 
 #include <thread>

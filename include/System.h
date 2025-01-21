@@ -35,11 +35,13 @@
 #include "LocalMapping.h"
 #include "LoopClosing.h"
 #include "KeyFrameDatabase.h"
-#include "ORBVocabulary.h"
 //#include "Viewer.h"
 #include "ImuTypes.h"
 #include "Settings.h"
+#include "CNNVocabulary.h"
 
+#include "DBoW3/src/DBoW3.h"
+#include "DBoW3/src/BowVector.h"
 
 namespace ORB_SLAM3
 {
@@ -225,9 +227,9 @@ private:
     LoopClosing* mpLoopCloser;
 
     // The viewer draws the map and the current camera pose. It uses Pangolin.
-   // Viewer* mpViewer;
+    // Viewer* mpViewer;
 
-   // FrameDrawer* mpFrameDrawer;
+    // FrameDrawer* mpFrameDrawer;
     // MapDrawer* mpMapDrawer;
 
     // System threads: Local Mapping, Loop Closing, Viewer.

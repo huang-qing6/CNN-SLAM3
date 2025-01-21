@@ -26,7 +26,7 @@
 
 #include "KeyFrame.h"
 #include "Frame.h"
-#include "ORBVocabulary.h"
+#include "CNNVocabulary.h"
 #include "Map.h"
 
 #include <boost/serialization/base_object.hpp>
@@ -35,6 +35,7 @@
 
 #include<mutex>
 
+using namespace std;
 
 namespace ORB_SLAM3
 {
@@ -88,10 +89,10 @@ protected:
    const ORBVocabulary* mpVoc;
 
    // Inverted file
-   std::vector<list<KeyFrame*> > mvInvertedFile;
+   std::vector<std::list<KeyFrame*> > mvInvertedFile;
 
    // For save relation without pointer, this is necessary for save/load function
-   std::vector<list<long unsigned int> > mvBackupInvertedFileId;
+   std::vector<std::list<long unsigned int> > mvBackupInvertedFileId;
 
    // Mutex
    std::mutex mMutex;

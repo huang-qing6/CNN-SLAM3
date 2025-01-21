@@ -21,10 +21,11 @@
 #define KEYFRAME_H
 
 #include "MapPoint.h"
-#include "DBoW2/DBoW2/BowVector.h"
-#include "DBoW2/DBoW2/FeatureVector.h"
-#include "ORBVocabulary.h"
-#include "NewExtractor.h"
+
+#include "DBoW3/src/BowVector.h"
+#include "DBoW3/src/FeatureVector.h"
+#include "CNNVocabulary.h"
+#include "CNNextractor.h"
 #include "Frame.h"
 #include "KeyFrameDatabase.h"
 #include "ImuTypes.h"
@@ -38,6 +39,7 @@
 #include <boost/serialization/vector.hpp>
 #include <boost/serialization/map.hpp>
 
+using namespace std;
 
 namespace ORB_SLAM3
 {
@@ -385,8 +387,9 @@ public:
     const cv::Mat mDescriptors;
 
     //BoW
-    DBoW2::BowVector mBowVec;
-    DBoW2::FeatureVector mFeatVec;
+
+    DBoW3::BowVector mBowVec;
+    DBoW3::FeatureVector mFeatVec;
 
     // Pose relative to parent (this is computed when bad flag is activated)
     Sophus::SE3f mTcp;
@@ -533,7 +536,7 @@ public:
                 else right++;
             }
         }
-        cout << "Point distribution in KeyFrame: left-> " << left << " --- right-> " << right << endl;
+        std::cout << "Point distribution in KeyFrame: left-> " << left << " --- right-> " << right << std::endl;
     }
 
 

@@ -49,7 +49,7 @@
 #include "MLPnPsolver.h"
 
 #include <Eigen/Sparse>
-
+#include "DBoW3/DUtils/Random.h"
 
 namespace ORB_SLAM3 {
     MLPnPsolver::MLPnPsolver(const Frame &F, const vector<MapPoint *> &vpMapPointMatches):

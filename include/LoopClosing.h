@@ -23,7 +23,7 @@
 #include "KeyFrame.h"
 #include "LocalMapping.h"
 #include "Atlas.h"
-#include "ORBVocabulary.h"
+#include "CNNVocabulary.h"
 #include "Tracking.h"
 
 #include "KeyFrameDatabase.h"

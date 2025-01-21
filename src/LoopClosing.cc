@@ -22,7 +22,7 @@
 #include "Sim3Solver.h"
 #include "Converter.h"
 #include "Optimizer.h"
-#include "ORBmatcher.h"
+#include "CNNmatcher.h"
 #include "G2oTypes.h"
 
 #include<mutex>
