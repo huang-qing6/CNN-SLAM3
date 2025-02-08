@@ -31,8 +31,8 @@ using namespace std;
 namespace ORB_SLAM3
 {
 
-    const int ORBmatcher::TH_HIGH = 100;
-    const int ORBmatcher::TH_LOW = 50;
+    const float ORBmatcher::TH_HIGH = 0.7;
+    const float ORBmatcher::TH_LOW = 0.15;
     const int ORBmatcher::HISTO_LENGTH = 30;
 
     // 构造函数,参数默认值为0.6,true
@@ -85,9 +85,9 @@ namespace ORB_SLAM3
                     const cv::Mat MPdescriptor = pMP->GetDescriptor();
 
                     // 最优的次优的描述子距离和index
-                    int bestDist=256;
+                    float bestDist=256;
                     int bestLevel= -1;
-                    int bestDist2=256;
+                    float bestDist2=256;
                     int bestLevel2 = -1;
                     int bestIdx =-1 ;
 
@@ -118,7 +118,7 @@ namespace ORB_SLAM3
                         const cv::Mat &d = F.mDescriptors.row(idx);
 
                         // 计算地图点和候选投影点的描述子距离
-                        const int dist = DescriptorDistance(MPdescriptor,d);
+                        const float dist = DescriptorDistance(MPdescriptor,d);
 
                         // 寻找描述子距离最小和次小的特征点和索引
                         if(dist<bestDist)
@@ -179,9 +179,9 @@ namespace ORB_SLAM3
 
                     const cv::Mat MPdescriptor = pMP->GetDescriptor();
 
-                    int bestDist=256;
+                    float bestDist=256;
                     int bestLevel= -1;
-                    int bestDist2=256;
+                    float bestDist2=256;
                     int bestLevel2 = -1;
                     int bestIdx =-1 ;
 
@@ -197,7 +197,7 @@ namespace ORB_SLAM3
 
                         const cv::Mat &d = F.mDescriptors.row(idx + F.Nleft);
 
-                        const int dist = DescriptorDistance(MPdescriptor,d);
+                        const float dist = DescriptorDistance(MPdescriptor,d);
 
                         if(dist<bestDist)
                         {
@@ -298,7 +298,6 @@ namespace ORB_SLAM3
                 // Step 2：遍历KF中属于该node的特征点
                 for(size_t iKF=0; iKF<vIndicesKF.size(); iKF++)
                 {
-                    // cout << "sucess !" << endl;
                     // 关键帧该节点中特征点的索引
                     const unsigned int realIdxKF = vIndicesKF[iKF];
 
@@ -313,13 +312,13 @@ namespace ORB_SLAM3
                     // 取出关键帧KF中该特征对应的描述子
                     const cv::Mat &dKF= pKF->mDescriptors.row(realIdxKF); 
 
-                    int bestDist1=256; // 最好的距离（最小距离）
+                    float bestDist1=256; // 最好的距离（最小距离）
                     int bestIdxF =-1 ;
-                    int bestDist2=256; // 次好距离（倒数第二小距离）
+                    float bestDist2=256; // 次好距离（倒数第二小距离）
 
-                    int bestDist1R=256;
+                    float bestDist1R=256;
                     int bestIdxFR =-1 ;
-                    int bestDist2R=256;
+                    float bestDist2R=256;
 
                     // cout << "try to find a kf" << endl;
                     // Step 3：遍历F中属于该node的特征点，寻找最佳匹配点
@@ -334,8 +333,13 @@ namespace ORB_SLAM3
                                 continue;
                             // 取出普通帧F中该特征对应的描述子
                             const cv::Mat &dF = F.mDescriptors.row(realIdxF);
+                            /*cout << "kDF" << endl;
+                            for(int i = 0; i < 5; i++)
+                                cout << dF.at<float>(0,i) << endl;*/
+
+
                             // 计算描述子的距离
-                            const int dist =  DescriptorDistance(dKF,dF);
+                            const float dist =  DescriptorDistance(dKF,dF);
                             // cout << dist << " " << bestDist1 << " " << bestDist2 << endl;
                             // 遍历，记录最佳距离、最佳距离对应的索引、次佳距离等
                             // 如果 dist < bestDist1 < bestDist2，更新bestDist1 bestDist2
@@ -359,7 +363,8 @@ namespace ORB_SLAM3
 
                             const cv::Mat &dF = F.mDescriptors.row(realIdxF);
 
-                            const int dist =  DescriptorDistance(dKF,dF);
+                            const float dist =  DescriptorDistance(dKF,dF);
+                            cout << dist << " " << bestDist1 << " " << bestDist2 << endl;
 
                             if(realIdxF < F.Nleft && dist<bestDist1){
                                 bestDist2=bestDist1;
@@ -383,7 +388,7 @@ namespace ORB_SLAM3
                     }
                     // Step 4：根据阈值 和 角度投票剔除误匹配
                     // Step 4.1：第一关筛选：匹配距离必须小于设定阈值
-                    // cout << "bestDist1: " << bestDist1 << " and " << TH_LOW <<  endl;
+                    
                     if(bestDist1<=TH_LOW)
                     {
                         // cout << "try to save kf 1" << endl;
@@ -586,7 +591,7 @@ namespace ORB_SLAM3
             // Match to the most similar keypoint in the radius
             const cv::Mat dMP = pMP->GetDescriptor();
 
-            int bestDist = 256;
+            float bestDist = 256;
             int bestIdx = -1;
             //  Step 2.4 遍历候选匹配点，找到最佳匹配点
             for(vector<size_t>::const_iterator vit=vIndices.begin(), vend=vIndices.end(); vit!=vend; vit++)
@@ -603,7 +608,7 @@ namespace ORB_SLAM3
 
                 const cv::Mat &dKF = pKF->mDescriptors.row(idx);
 
-                const int dist = DescriptorDistance(dMP,dKF);
+                const float dist = DescriptorDistance(dMP,dKF);
 
                 if(dist<bestDist)
                 {
@@ -702,7 +707,7 @@ namespace ORB_SLAM3
             // Match to the most similar keypoint in the radius
             const cv::Mat dMP = pMP->GetDescriptor();
 
-            int bestDist = 256;
+            float bestDist = 256;
             int bestIdx = -1;
             for(vector<size_t>::const_iterator vit=vIndices.begin(), vend=vIndices.end(); vit!=vend; vit++)
             {
@@ -717,7 +722,7 @@ namespace ORB_SLAM3
 
                 const cv::Mat &dKF = pKF->mDescriptors.row(idx);
 
-                const int dist = DescriptorDistance(dMP,dKF);
+                const float dist = DescriptorDistance(dMP,dKF);
 
                 if(dist<bestDist)
                 {
@@ -781,8 +786,8 @@ namespace ORB_SLAM3
             // 取出参考帧F1中当前遍历特征点对应的描述子
             cv::Mat d1 = F1.mDescriptors.row(i1);
 
-            int bestDist = INT_MAX;     //最佳描述子匹配距离，越小越好
-            int bestDist2 = INT_MAX;    //次佳描述子匹配距离
+            float bestDist = INT_MAX;     //最佳描述子匹配距离，越小越好
+            float bestDist2 = INT_MAX;    //次佳描述子匹配距离
             int bestIdx2 = -1;          //最佳候选特征点在F2中的index
 
             // Step 3 遍历搜索搜索窗口中的所有潜在的匹配候选点，找到最优的和次优的
@@ -918,8 +923,6 @@ namespace ORB_SLAM3
         for(int i=0;i<HISTO_LENGTH;i++)
             rotHist[i].reserve(500);
 
-        //! 原作者代码是 const float factor = 1.0f/HISTO_LENGTH; 是错误的，更改为下面代码   
-        // const float factor = HISTO_LENGTH/360.0f;
         const float factor = 1.0f/HISTO_LENGTH;
 
         int nmatches = 0;
@@ -950,9 +953,9 @@ namespace ORB_SLAM3
 
                     const cv::Mat &d1 = Descriptors1.row(idx1);
 
-                    int bestDist1=256;
+                    float bestDist1=256;
                     int bestIdx2 =-1 ;
-                    int bestDist2=256;
+                    float bestDist2=256;
 
                     // Step 4 遍历KF2中属于该node的特征点，找到了最优及次优匹配点
                     for(size_t i2=0, iend2=f2it->second.size(); i2<iend2; i2++)
@@ -1153,7 +1156,7 @@ namespace ORB_SLAM3
                     // 通过特征点索引idx1在pKF1中取出对应的特征点的描述子
                     const cv::Mat &d1 = pKF1->mDescriptors.row(idx1);
                     
-                    int bestDist = TH_LOW;
+                    float bestDist = TH_LOW;
                     int bestIdx2 = -1;
                     
                     // Step 2.5：遍历该node节点下(f2it->first)对应KF2中的所有特征点
@@ -1180,7 +1183,7 @@ namespace ORB_SLAM3
                         const cv::Mat &d2 = pKF2->mDescriptors.row(idx2);
                         
                         // Step 2.6 计算idx1与idx2在两个关键帧中对应特征点的描述子距离
-                        const int dist = DescriptorDistance(d1,d2);
+                        const float dist = DescriptorDistance(d1,d2);
                         
                         if(dist>TH_LOW || dist>bestDist)
                             continue;
@@ -1447,7 +1450,7 @@ namespace ORB_SLAM3
             // Step 6 遍历寻找最佳匹配点（最小描述子距离）
             const cv::Mat dMP = pMP->GetDescriptor();
 
-            int bestDist = 256;
+            float bestDist = 256;
             int bestIdx = -1;
             for(vector<size_t>::const_iterator vit=vIndices.begin(), vend=vIndices.end(); vit!=vend; vit++)
             {
@@ -1497,7 +1500,7 @@ namespace ORB_SLAM3
 
                 const cv::Mat &dKF = pKF->mDescriptors.row(idx);
 
-                const int dist = DescriptorDistance(dMP,dKF);
+                const float dist = DescriptorDistance(dMP,dKF);
 
                 if(dist<bestDist)// 找MapPoint在该区域最佳匹配的特征点
                 {
@@ -1635,7 +1638,7 @@ namespace ORB_SLAM3
             // Step 6 寻找最佳匹配点（没有用到次佳匹配的比例）
             const cv::Mat dMP = pMP->GetDescriptor();
 
-            int bestDist = INT_MAX;
+            float bestDist = INT_MAX;
             int bestIdx = -1;
             for(vector<size_t>::const_iterator vit=vIndices.begin(); vit!=vIndices.end(); vit++)
             {
@@ -1804,7 +1807,7 @@ namespace ORB_SLAM3
             // Match to the most similar keypoint in the radius
             const cv::Mat dMP = pMP->GetDescriptor();
 
-            int bestDist = INT_MAX;
+            float bestDist = INT_MAX;
             int bestIdx = -1;
             // Step 3.4：遍历所有候选特征点，寻找最佳匹配点（并未使用次佳最佳比例约束）
             for(vector<size_t>::const_iterator vit=vIndices.begin(), vend=vIndices.end(); vit!=vend; vit++)
@@ -1818,7 +1821,7 @@ namespace ORB_SLAM3
 
                 const cv::Mat &dKF = pKF2->mDescriptors.row(idx);
 
-                const int dist = DescriptorDistance(dMP,dKF);
+                const float dist = DescriptorDistance(dMP,dKF);
 
                 if(dist<bestDist)
                 {
@@ -1887,7 +1890,7 @@ namespace ORB_SLAM3
             // Match to the most similar keypoint in the radius
             const cv::Mat dMP = pMP->GetDescriptor();
 
-            int bestDist = INT_MAX;
+            float bestDist = INT_MAX;
             int bestIdx = -1;
             for(vector<size_t>::const_iterator vit=vIndices.begin(), vend=vIndices.end(); vit!=vend; vit++)
             {
@@ -1900,7 +1903,7 @@ namespace ORB_SLAM3
 
                 const cv::Mat &dKF = pKF1->mDescriptors.row(idx);
 
-                const int dist = DescriptorDistance(dMP,dKF);
+                const float dist = DescriptorDistance(dMP,dKF);
 
                 if(dist<bestDist)
                 {
@@ -2034,7 +2037,7 @@ namespace ORB_SLAM3
 
                     const cv::Mat dMP = pMP->GetDescriptor();
 
-                    int bestDist = 256;
+                    float bestDist = 256;
                     int bestIdx2 = -1;
 
                     // Step 5 遍历候选匹配点，寻找距离最小的最佳匹配点 
@@ -2058,7 +2061,7 @@ namespace ORB_SLAM3
 
                         const cv::Mat &d = CurrentFrame.mDescriptors.row(i2);
 
-                        const int dist = DescriptorDistance(dMP,d);
+                        const float dist = DescriptorDistance(dMP,d);
 
                         if(dist<bestDist)
                         {
@@ -2114,7 +2117,7 @@ namespace ORB_SLAM3
 
                         const cv::Mat dMP = pMP->GetDescriptor();
 
-                        int bestDist = 256;
+                        float bestDist = 256;
                         int bestIdx2 = -1;
 
                         for(vector<size_t>::const_iterator vit=vIndices2.begin(), vend=vIndices2.end(); vit!=vend; vit++)
@@ -2126,7 +2129,7 @@ namespace ORB_SLAM3
 
                             const cv::Mat &d = CurrentFrame.mDescriptors.row(i2 + CurrentFrame.Nleft);
 
-                            const int dist = DescriptorDistance(dMP,d);
+                            const float dist = DescriptorDistance(dMP,d);
 
                             if(dist<bestDist)
                             {
@@ -2263,7 +2266,7 @@ namespace ORB_SLAM3
 
                     const cv::Mat dMP = pMP->GetDescriptor();
 
-                    int bestDist = 256;
+                    float bestDist = 256;
                     int bestIdx2 = -1;
                     // Step 4 遍历候选匹配点，寻找距离最小的最佳匹配点 
                     for(vector<size_t>::const_iterator vit=vIndices2.begin(); vit!=vIndices2.end(); vit++)
@@ -2274,7 +2277,7 @@ namespace ORB_SLAM3
 
                         const cv::Mat &d = CurrentFrame.mDescriptors.row(i2);
 
-                        const int dist = DescriptorDistance(dMP,d);
+                        const float dist = DescriptorDistance(dMP,d);
 
                         if(dist<bestDist)
                         {
@@ -2386,23 +2389,9 @@ namespace ORB_SLAM3
     // Bit set count operation from
     // Hamming distance：两个二进制串之间的汉明距离，指的是其不同位数的个数
     // http://graphics.stanford.edu/~seander/bithacks.html#CountBitsSetParallel
-    int ORBmatcher::DescriptorDistance(const cv::Mat &a, const cv::Mat &b)
+    float ORBmatcher::DescriptorDistance(const cv::Mat &a, const cv::Mat &b)
     {
-        const int *pa = a.ptr<int32_t>();
-        const int *pb = b.ptr<int32_t>();
-        cout << a.rows << " " << b.rows << endl;
-        int dist=0;
-
-        for(int i=0; i<8; i++, pa++, pb++)
-        {
-            unsigned  int v = *pa ^ *pb;        // 相等为0,不等为1
-            // 下面的操作就是计算其中bit为1的个数了,这个操作看上面的链接就好
-            // 其实我觉得也还阔以直接使用8bit的查找表,然后做32次寻址操作就完成了;不过缺点是没有利用好CPU的字长
-            v = v - ((v >> 1) & 0x55555555);
-            v = (v & 0x33333333) + ((v >> 2) & 0x33333333);
-            dist += (((v + (v >> 4)) & 0xF0F0F0F) * 0x1010101) >> 24;
-        }
-
+        float dist = (float)cv::norm(a, b, cv::NORM_L2);
         return dist;
     }
 

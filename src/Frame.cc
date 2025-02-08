@@ -417,7 +417,6 @@ void Frame::ExtractORB(int flag, const cv::Mat &im, const int x0, const int x1)
     vector<int> vLapping = {x0,x1};
     if(flag==0){
         monoLeft = (*mpORBextractorLeft)(im,cv::Mat(),mvKeys,mDescriptors,vLapping);
-        // cout << "desc size: " << mDescriptors.rows << ' ' << mDescriptors.cols << endl;
     }else
         monoRight = (*mpORBextractorRight)(im,cv::Mat(),mvKeysRight,mDescriptorsRight,vLapping);
 }
@@ -809,7 +808,6 @@ void Frame::ComputeStereoMatches()
     mvuRight = vector<float>(N,-1.0f);
     mvDepth = vector<float>(N,-1.0f);
 
-    // const int thOrbDist = (ORBmatcher::TH_HIGH+ORBmatcher::TH_LOW)/2;
     const float thOrbDist = (ORBmatcher::TH_HIGH+ORBmatcher::TH_LOW)/2;
 
     const int nRows = mpORBextractorLeft->mvImagePyramid[0].rows;
@@ -861,7 +859,6 @@ void Frame::ComputeStereoMatches()
         if(maxU<0)
             continue;
 
-        // int bestDist = ORBmatcher::TH_HIGH;
         float bestDist = ORBmatcher::TH_HIGH;
         size_t bestIdxR = 0;
 
@@ -881,7 +878,6 @@ void Frame::ComputeStereoMatches()
             if(uR>=minU && uR<=maxU)
             {
                 const cv::Mat &dR = mDescriptorsRight.row(iR);
-                // const int dist = ORBmatcher::DescriptorDistance(dL,dR);
                 const float dist = ORBmatcher::DescriptorDistance(dL,dR);
 
                 if(dist<bestDist)
@@ -906,7 +902,6 @@ void Frame::ComputeStereoMatches()
             const int w = 5;
             cv::Mat IL = mpORBextractorLeft->mvImagePyramid[kpL.octave].rowRange(scaledvL-w,scaledvL+w+1).colRange(scaleduL-w,scaleduL+w+1);
 
-            // int bestDist = INT_MAX;
             float bestDist = INT_MAX;
             int bestincR = 0;
             const int L = 5;
@@ -959,7 +954,7 @@ void Frame::ComputeStereoMatches()
                 }
                 mvDepth[iL]=mbf/disparity;
                 mvuRight[iL] = bestuR;
-                vDistIdx.push_back(pair<int,int>(bestDist,iL));
+                vDistIdx.push_back(pair<float,int>(bestDist,iL));
             }
         }
     }
@@ -1059,6 +1054,7 @@ Frame::Frame(const cv::Mat &imLeft, const cv::Mat &imRight, const double &timeSt
     thread threadRight(&Frame::ExtractORB,this,1,imRight,static_cast<KannalaBrandt8*>(mpCamera2)->mvLappingArea[0],static_cast<KannalaBrandt8*>(mpCamera2)->mvLappingArea[1]);
     threadLeft.join();
     threadRight.join();
+
 #ifdef REGISTER_TIMES
     std::chrono::steady_clock::time_point time_EndExtORB = std::chrono::steady_clock::now();
 

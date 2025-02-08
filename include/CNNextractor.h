@@ -23,7 +23,7 @@ public:
     
     CNNextractor(){};
     CNNextractor(int nfeatures, float scaleFactor, int nlevels,
-                int initThFAST, int minThFAST);
+                float initThFAST, float minThFAST);
 
     ~CNNextractor(){};
 
@@ -63,8 +63,8 @@ protected:
     int nfeatures;
     double scaleFactor;
     int nlevels;
-    int iniThFAST;
-    int minThFAST;
+    float iniThFAST;
+    float minThFAST;
 
     std::vector<int> mnFeaturesPerLevel;
 

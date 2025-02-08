@@ -280,7 +280,7 @@ protected:
     
     //Drawers
     // Viewer* mpViewer;
-   // FrameDrawer* mpFrameDrawer;
+    // FrameDrawer* mpFrameDrawer;
     // MapDrawer* mpMapDrawer;
     bool bStepByStep;
 

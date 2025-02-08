@@ -2124,7 +2124,6 @@ void Tracking::Track()
             if(bOK)
             {
                 bOK = TrackLocalMap();
-
             }
             if(!bOK)
                 cout << "Fail to track local map!" << endl;
