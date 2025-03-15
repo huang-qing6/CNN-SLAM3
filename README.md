@@ -22,5 +22,5 @@ Pytorch: https://github.com/pytorch/pytorch
 OpenCV: https://github.com/opencv/opencv
 
 ### 问题（待解决）
-匹配特征点过少导致建图质量差，可参阅SP-SLAM2代码不考虑优化过多的处理时间来优化
+匹配特征点过少导致建图质量差，可参阅SP-SLAM2代码不考虑优化过多的处理时间来优化 
 词带没有进行验证，用的别人训练的可能有问题
