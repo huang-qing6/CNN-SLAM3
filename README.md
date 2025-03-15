@@ -20,3 +20,6 @@ ORB-SLAM3(Main): https://github.com/UZ-SLAMLab/ORB_SLAM3
 Pytorch: https://github.com/pytorch/pytorch
 
 OpenCV: https://github.com/opencv/opencv
+
+### 问题（待解决）
+匹配特征点过少导致建图质量差，可参阅SP-SLAM2代码不考虑优化过多的处理时间来优化
